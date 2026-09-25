@@ -1,10 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { getPlatformSettings, resolveMaintenanceMessage } from "@/lib/platform-settings";
 import { buttonStyles } from "@/components/ui";
 
 export default async function MaintenancePage() {
+  await connection();
   const settings = await getPlatformSettings();
 
   if (!settings.maintenanceMode) {

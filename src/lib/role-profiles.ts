@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import {
   PERMISSIONS,
@@ -145,11 +146,12 @@ export async function getPermissionsForRoleName(
 
 export async function getPermissionsForRoleNames(
   roleNames: string[] | undefined | null,
+  client: Pick<Prisma.TransactionClient, "roleProfile"> = prisma,
 ): Promise<Permission[]> {
   if (!roleNames?.length) return [];
 
   const uniqueRoleNames = [...new Set(roleNames.filter(Boolean))];
-  const profiles = await prisma.roleProfile.findMany({
+  const profiles = await client.roleProfile.findMany({
     where: { name: { in: uniqueRoleNames } },
     select: { name: true, permissionsJson: true },
   });

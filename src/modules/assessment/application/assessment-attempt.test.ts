@@ -74,6 +74,21 @@ test("start is explicit and idempotent while an attempt is in progress", async (
   assert.equal(state.attempts.length, 1);
 });
 
+test("submission cannot silently create another attempt when its expected draft is gone", async () => {
+  const { repository, state } = createRepository();
+  const submit = createSubmitAssessmentAttempt(repository);
+  await assert.rejects(
+    submit({
+      quizId: "quiz-1", userId: "user-1", expectedAttemptId: "missing-attempt",
+      questions: [question], answers: { q1: 1 }, maxAttempts: 2,
+      minCorrectAnswers: 1, retryDelayMinutes: null, timeLimitMinutes: null,
+      securityEventsJson: null,
+    }),
+    (error: unknown) => error instanceof AssessmentApplicationError && error.code === "ATTEMPT_NOT_ACTIVE",
+  );
+  assert.equal(state.attempts.length, 0);
+});
+
 test("submission calculates and projects the result in one transaction", async () => {
   const { repository, state } = createRepository();
   const submit = createSubmitAssessmentAttempt(repository);

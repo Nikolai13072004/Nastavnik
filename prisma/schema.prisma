@@ -38,6 +38,8 @@ model User {
   activationInvite         UserActivationInvite?      @relation("UserActivationInviteForUser")
   createdActivationInvites UserActivationInvite[]     @relation("UserActivationInviteCreatedBy")
   passwordResetTokens      PasswordResetToken[]
+  maxLink                  MaxAccountLink?
+  maxLinkInvite            MaxLinkInvite?
   itemViews                CourseItemView[]
   learningEvents           LearningEvent[]
   quizAttempts             QuizAttempt[]
@@ -58,11 +60,29 @@ model User {
   certificates             Certificate[]              @relation("CertificateOwner")
   issuedCertificates       Certificate[]              @relation("CertificateIssuedBy")
   revokedCertificates      Certificate[]              @relation("CertificateRevokedBy")
+  maxDocumentTrainings      MaxDocumentTraining[]
 
   @@index([departmentId])
   @@index([organizationId])
   // Обратный поиск владельца аватара при авторизации выдачи `/uploads/*`.
   @@index([avatarUrl])
+}
+
+model MaxAccountLink {
+  maxUserId      String   @id
+  userId         String   @unique
+  organizationId String
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MaxLinkInvite {
+  userId         String   @id
+  tokenHash      String   @unique
+  organizationId String
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model UserTotpCredential {
@@ -128,11 +148,15 @@ model Department {
 }
 
 model Organization {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  users     User[]
+  id                    String                 @id @default(cuid())
+  name                  String                 @unique
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  users                 User[]
+  courses               Course[]
+  maxKnowledgeDocuments MaxKnowledgeDocument[]
+  maxCourseDocuments    MaxCourseDocument[]
+  maxDocumentTrainings  MaxDocumentTraining[]
 }
 
 model GroupMembership {
@@ -171,25 +195,30 @@ model Course {
   publishedSnapshotJson String?
   hasUnpublishedChanges Boolean   @default(false)
   ownerId               String?
+  organizationId        String?
   publishedAt           DateTime?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  owner               User?                      @relation("CourseOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  modules             CourseModule[]
-  items               CourseItem[]
-  directAssignments   CourseUserAssignment[]
-  groupAssignments    CourseGroupAssignment[]
-  invites             CourseInvite[]
-  feedbacks           CourseFeedback[]
-  surveyTemplate      CourseSurveyTemplate?
-  surveyResponses     CourseSurveyResponse[]
-  itemSurveyTemplates CourseItemSurveyTemplate[]
-  itemSurveyResponses CourseItemSurveyResponse[]
-  hrReportSchedules   HrReportSchedule[]
-  learnerStates       CourseLearnerState[]
-  reminderDispatches  CourseReminderDispatch[]
-  certificates        Certificate[]
+  owner                 User?                      @relation("CourseOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  organization          Organization?              @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  modules               CourseModule[]
+  items                 CourseItem[]
+  directAssignments     CourseUserAssignment[]
+  groupAssignments      CourseGroupAssignment[]
+  invites               CourseInvite[]
+  feedbacks             CourseFeedback[]
+  surveyTemplate        CourseSurveyTemplate?
+  surveyResponses       CourseSurveyResponse[]
+  itemSurveyTemplates   CourseItemSurveyTemplate[]
+  itemSurveyResponses   CourseItemSurveyResponse[]
+  hrReportSchedules     HrReportSchedule[]
+  learnerStates         CourseLearnerState[]
+  reminderDispatches    CourseReminderDispatch[]
+  certificates          Certificate[]
+  maxKnowledgeDocuments MaxKnowledgeDocument[]
+  maxCourseDocuments    MaxCourseDocument[]
+  maxDocumentTrainings  MaxDocumentTraining[]
 
   // Обратный поиск владельца файла по URL обложки/миниатюры при авторизации
   // выдачи `/uploads/*` (src/lib/storage/upload-access.ts).
@@ -197,6 +226,79 @@ model Course {
   @@index([thumbnailUrl])
   // Каталог/HR/аналитика: where { status } (+ orderBy publishedAt в каталоге).
   @@index([status, publishedAt])
+  @@index([organizationId, status, publishedAt])
+}
+
+// Only explicitly approved and version-pinned Vedomo sources may be shown to
+// a MAX learner. Assignment and current organization are checked again at read time.
+model MaxKnowledgeDocument {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  courseId              String
+  publishedSnapshotHash String
+  vedomoDocumentId      String
+  vedomoDocumentHash    String
+  courseDocumentId      String?
+  approvedAt            DateTime  @default(now())
+  revokedAt             DateTime?
+
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  course         Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseDocument MaxCourseDocument? @relation(fields: [courseDocumentId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, courseId, vedomoDocumentId], map: "max_knowledge_doc_scope_key")
+  @@unique([organizationId, courseId, courseDocumentId], map: "max_knowledge_doc_course_source_key")
+  @@index([organizationId, courseId, publishedSnapshotHash, revokedAt], map: "max_knowledge_doc_current_idx")
+}
+
+// Text-only pilot documents. File bytes are not served from public storage.
+model MaxCourseDocument {
+  id             String    @id @default(cuid())
+  organizationId String
+  courseId       String
+  title          String
+  sourceName     String
+  contentText    String
+  contentHash    String
+  supersedesId   String?   @unique
+  versionNumber  Int       @default(1)
+  changeSummary  String?
+  checkQuestion  String?
+  checkOptionsJson String?
+  checkCorrectIndex Int?
+  uploadedById   String
+  approvedById   String?
+  approvedAt     DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization       Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  course             Course                 @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  knowledgeDocuments MaxKnowledgeDocument[]
+  trainingRecipients MaxDocumentTraining[]
+
+  @@index([organizationId, courseId, approvedAt, revokedAt], map: "max_course_doc_scope_idx")
+}
+
+model MaxDocumentTraining {
+  id             String    @id @default(cuid())
+  organizationId String
+  courseId       String
+  documentId     String
+  userId         String
+  assignedAt     DateTime  @default(now())
+  viewedAt       DateTime?
+  passedAt       DateTime?
+  attempts       Int       @default(0)
+  lastAnsweredAt DateTime?
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  course       Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  document     MaxCourseDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, userId])
+  @@index([organizationId, courseId, documentId])
 }
 
 // Сертификат о прохождении курса — иммутабельный снимок факта завершения (ADR-012).
@@ -896,6 +998,23 @@ model StorageFile {
   @@unique([area, sha256, sizeBytes, extension])
   @@index([area, createdAt])
   @@index([sha256])
+}
+
+model MaxBotDelivery {
+  eventKey    String    @id
+  botUsername String
+  maxUserId   String
+  kind        String    @default("WELCOME")
+  documentId  String?
+  status      String    @default("PENDING")
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  messageId   String?
+  errorCode   String?
+
+  @@index([botUsername, status, createdAt])
+  @@index([botUsername, finishedAt])
 }
 
 model PlatformSettings {

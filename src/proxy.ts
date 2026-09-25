@@ -3,5 +3,8 @@
 export { auth as proxy } from "@/auth";
 
 export const config = {
-  matcher: ["/((?!api/auth|api/health|api/upload|_next/static|_next/image|favicon.ico|uploads|branding).*)"],
+  // MAX courses use a separate learner-only bearer session, never NextAuth roles.
+  // Invitation issuance remains behind the ordinary LMS session guard.
+  // Webhook uses its own server-to-server secret, not a browser session.
+  matcher: ["/((?!max/?$|api/max/(?:identity|courses|course|course-search|knowledge|quiz|manager-report|employees|documents|document-training|webhook)/?$|api/auth|api/health|api/upload|_next/static|_next/image|favicon.ico|uploads|branding).*)"],
 };

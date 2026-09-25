@@ -1,0 +1,21 @@
+name: prodigy-max-dev
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: max_dev
+      POSTGRES_PASSWORD: local_dev_only
+      POSTGRES_DB: prodigy_max_dev
+    ports:
+      - "127.0.0.1:55434:5432"
+    volumes:
+      - max_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U max_dev -d prodigy_max_dev"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  max_pgdata:

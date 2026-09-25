@@ -11,6 +11,7 @@
 - Не пушьте в ветку другого разработчика или агента без явного согласования. Не включайте в свой коммит уже лежащие в worktree чужие изменения.
 - Ветка и PR могут измениться во время ревью. Перед правками по ревью, финальной проверкой или разрешением конфликта снова сделайте `git fetch` и проверьте текущий PR/remote branch; не опирайтесь на старый локальный diff.
 - Не делайте commit, push, rebase или merge, если пользователь этого явно не просил. Не удаляйте и не откатывайте чужие изменения ради «чистого» worktree.
+- По требованию владельца не добавляйте AI-инструмент в авторство, Co-authored-by, подписи коммитов или PR. Не меняйте Git identity без согласования. Перед установкой новых инструментов предупреждайте пользователя.
 
 ## Production-схема: PostgreSQL + `migrate deploy`
 
@@ -22,7 +23,7 @@
 npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --exit-code
 ```
 
-Production использует SQLite из `DATABASE_URL` (`/app/data/dev.db` в Compose), а не PostgreSQL.
+MAX-стенд использует отдельную PostgreSQL и только свою историю migrate deploy. Старые указания на SQLite не относятся к текущей схеме.
 
 ## Архитектурные границы
 
@@ -33,7 +34,9 @@ Production использует SQLite из `DATABASE_URL` (`/app/data/dev.db` �
 
 ## Next.js 16
 
-Это не знакомый по старым версиям Next.js: в `16.2.2` есть breaking changes в API, соглашениях и структуре файлов. Перед написанием Next.js-кода прочитайте релевантный раздел локальной документации в `node_modules/next/dist/docs/` и учитывайте deprecation notices; не полагайтесь на память о предыдущих версиях.
+- Локальный dev на Windows запускать через `npm run dev:safe` (порт 3101, Webpack, Windows Job Object: максимум 12 процессов, 4 GiB committed memory и 20% CPU на всё дерево). Порт 3100 занят другим проектом; не останавливать его. Скрипт запускается в отдельном PowerShell, не dot-source. Не запускать напрямую `next dev` / Turbopack: 23 сентября сборка Tailwind зациклилась и породила около 2000 процессов. `npm run dev` тоже использует Webpack, но без системных лимитов. Production build пока не проверен; не запускать стандартный Turbopack build без отдельного безопасного плана. Не удалять внешние lockfile пользователя.
+
+Текущая версия Next.js — `16.3.6` (обновлена с 16.2.2 перед HTTPS-стендом). Перед написанием Next.js-кода прочитайте релевантный раздел локальной документации в `node_modules/next/dist/docs/` и учитывайте deprecation notices; не полагайтесь на память о предыдущих версиях. MAX Docker image собирается только через Dockerfile.max и отдельный ограниченный builder; на общем VPS сборку не запускать. Операционные правила: deploy/max/README.md.
 
 ## Файловое хранилище
 
@@ -43,7 +46,7 @@ Production использует SQLite из `DATABASE_URL` (`/app/data/dev.db` �
 
 ## Тесты и проверки
 
-Скрипт `test:unit` в `package.json` содержит явный список файлов. Новый unit-тест сам не подхватится: добавьте его путь в этот скрипт вручную. Перед передачей изменений запускайте подходящий минимум из:
+Скрипт `test:unit` автоматически находит unit-тесты через scripts/run-unit-tests.mjs; infra запускаются отдельно. Не использовать полный test:infra на существующей dev/пилотной базе: runner может сбрасывать данные. Перед передачей изменений запускайте подходящий минимум из:
 
 ```bash
 npm run test:unit
@@ -56,3 +59,13 @@ npx tsc --noEmit --incremental false
 Для реальной доставки почты источник истины — deployment environment / `.env`: `EMAIL_PROVIDER`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_TLS_SERVERNAME`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` и OAuth SMTP variables, если включён OAuth2.
 
 Не меняйте и не перезаписывайте эти значения defaults из admin/platform и не печатайте секреты. При тестировании реальной доставки используйте значения окружения напрямую, если пользователь явно не попросил проверить сохранённые admin settings.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

@@ -14,6 +14,7 @@ import {
 export type SubmitAssessmentAttemptCommand = {
   quizId: string;
   userId: string;
+  expectedAttemptId?: string;
   questions: AssessmentQuestion[];
   answers: Record<string, unknown>;
   maxAttempts: number;
@@ -36,6 +37,10 @@ export function createSubmitAssessmentAttempt(repository: AssessmentRepository) 
           const draftAttempt = transaction.attempts
             .filter((attempt) => attempt.outcome === "IN_PROGRESS")
             .sort((left, right) => right.attemptNumber - left.attemptNumber)[0] ?? null;
+
+          if (command.expectedAttemptId && draftAttempt?.id !== command.expectedAttemptId) {
+            throw new AssessmentDomainError("ATTEMPT_NOT_ACTIVE", "Попытка уже завершена или недоступна.");
+          }
 
           assertAttemptAvailable({
             completedAttempts,

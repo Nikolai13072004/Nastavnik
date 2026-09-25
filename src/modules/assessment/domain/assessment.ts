@@ -36,7 +36,8 @@ export class AssessmentDomainError extends Error {
       | "PENDING_REVIEW"
       | "ATTEMPTS_EXHAUSTED"
       | "RETRY_DELAY"
-      | "TIME_LIMIT_EXPIRED",
+      | "TIME_LIMIT_EXPIRED"
+      | "ATTEMPT_NOT_ACTIVE",
     message: string,
   ) {
     super(message);

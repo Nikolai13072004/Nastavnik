@@ -35,6 +35,21 @@ test("createCourse: сохраняет базовые поля и вернёт i
   assert.equal(row?.durationMinutes, 60);
 });
 
+test("createCourse: фиксирует организацию на момент создания, а не выводит её из текущего владельца", async () => {
+  const organization = await prisma.organization.create({ data: { name: "CC organization scope" } });
+  const owner = await prisma.user.create({
+    data: { login: "cc-org-owner", name: "Organization owner", passwordHash: "x", organizationId: organization.id },
+  });
+  const created = await repo.transact((tx) => tx.createCourse({
+    title: "Scoped course", description: "desc", category: null, difficultyLevel: null,
+    durationMinutes: null, thumbnailUrl: null, coverUrl: null, ownerId: owner.id,
+  }));
+  assert.equal((await prisma.course.findUniqueOrThrow({ where: { id: created.id } })).organizationId, organization.id);
+
+  await prisma.user.update({ where: { id: owner.id }, data: { organizationId: null } });
+  assert.equal((await prisma.course.findUniqueOrThrow({ where: { id: created.id } })).organizationId, organization.id);
+});
+
 test("createItem с nested quiz + questions создаёт всё одной операцией", async () => {
   const owner = await seedOwner("cc-owner-2");
   const course = await repo.transact(async (tx) =>

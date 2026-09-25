@@ -51,6 +51,10 @@ function formatFrom(emailOrHeader: string | null, name: string | null) {
 }
 
 export async function sendEmail(input: SendEmailInput) {
+  // The isolated MAX pilot has no email workflow. Keep delivery disabled even
+  // if SMTP settings are later populated in its database or environment.
+  if (process.env.MAX_DISABLE_EMAIL === "true") return;
+
   const provider = (process.env.EMAIL_PROVIDER ?? "stub").toLowerCase();
   // Вся конфигурация доставки читается одним запросом: хост, порт, источник и
   // учётные данные должны происходить из одного снимка настроек. Сборка их из

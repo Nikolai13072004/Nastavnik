@@ -24,6 +24,18 @@ function makeRepository(opts: { users?: UserRecord[] }) {
   const repository: UserLifecycleRepository = {
     async transact(execute) {
       const transaction: UserLifecycleTransaction = {
+        async deleteUserEmailJobsByEmail() {
+          assert.fail("Archiving or restoring must not delete email jobs");
+        },
+        async deleteCourseInvitesByEmail() {
+          assert.fail("Archiving or restoring must not delete course invites");
+        },
+        async deleteCourseInvitesByAcceptedUserId() {
+          assert.fail("Archiving or restoring must not delete accepted invites");
+        },
+        async hardDeleteUser() {
+          assert.fail("Archiving or restoring must not permanently delete users");
+        },
         async findUsersByIds(userIds) {
           return (opts.users ?? []).filter((user) => userIds.includes(user.id));
         },

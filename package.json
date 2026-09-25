@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
+    "dev:safe": "powershell.exe -NoProfile -File scripts/dev-safe.ps1",
+    "max:check": "tsx scripts/max-check.ts",
+    "max:worker": "tsx scripts/max-worker.ts",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
@@ -33,12 +36,12 @@
     "@prisma/client": "5.22.0",
     "bcryptjs": "3.0.3",
     "lucide-react": "1.12.0",
-    "next": "16.2.2",
-    "next-auth": "5.0.0-beta.30",
+    "next": "16.3.6",
+    "next-auth": "5.0.0-beta.32",
     "nodemailer": "7.0.13",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "sharp": "0.34.5"
+    "sharp": "0.35.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.2.2",
@@ -49,11 +52,14 @@
     "@types/react-dom": "19.2.3",
     "dotenv": "17.4.0",
     "eslint": "9.39.4",
-    "eslint-config-next": "16.2.2",
+    "eslint-config-next": "16.3.6",
     "playwright": "1.59.1",
     "prisma": "5.22.0",
     "tailwindcss": "4.2.2",
-    "tsx": "4.21.0",
+    "tsx": "4.23.15",
     "typescript": "5.9.3"
+  },
+  "overrides": {
+    "baseline-browser-mapping": "2.11.23"
   }
 }

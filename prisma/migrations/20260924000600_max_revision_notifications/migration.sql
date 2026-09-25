@@ -1,0 +1,3 @@
+ALTER TABLE "MaxBotDelivery"
+  ADD COLUMN "kind" TEXT NOT NULL DEFAULT 'WELCOME',
+  ADD COLUMN "documentId" TEXT;

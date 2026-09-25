@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox="0 0 500 500">
+  <title>Prodigy — временный знак</title>
+  <rect width="500" height="500" rx="96" fill="#176f74"/>
+  <path d="M155 365V130h112c63 0 99 32 99 86s-36 87-99 87h-53v62zm59-120h49c29 0 44-10 44-29s-15-29-44-29h-49z" fill="#fbfcfa"/>
+  <path d="M254 344h112v21H254z" fill="#a9dfcf"/>
+</svg>

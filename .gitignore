@@ -77,10 +77,14 @@ next-env.d.ts
 /data/storage-tmp/
 
 # local runtime logs
+/tmp/
 /tmp/*.log
 /tmp/*.pid
+/tmp/*.tar
 
 # e2e artifacts
+/.playwright-cli/
+/output/playwright/
 /playwright-report
 /test-results
 /docs/гайды/*

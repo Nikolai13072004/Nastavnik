@@ -335,7 +335,7 @@ export function AppShellClient({
     ? navItems.length > 0
     : navItems.length > 1;
 
-  if (!user || isAuthPage || isInvitePage) {
+  if (!user || isAuthPage || isInvitePage || pathname === "/max") {
     return <>{children}</>;
   }
 

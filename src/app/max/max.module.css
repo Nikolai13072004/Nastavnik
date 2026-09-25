@@ -1,0 +1,131 @@
+.page {
+  min-height: 100dvh;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
+  color: var(--ink);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand { font-size: 20px; font-weight: 700; }
+.brand span { color: var(--accent); font-weight: 500; }
+.preview { color: var(--ink-muted); font-size: 12px; }
+.content { padding: 56px 0 40px; }
+.eyebrow { color: var(--accent); font-size: 14px; font-weight: 600; margin-bottom: 16px; }
+.content h1 { font-size: clamp(30px, 7vw, 44px); font-weight: 600; line-height: 1.15; letter-spacing: -0.03em; }
+.intro { margin-top: 20px; color: var(--ink-muted); line-height: 1.6; max-width: 38ch; }
+
+.status {
+  margin-top: 36px;
+  padding: 20px;
+  background: var(--surface);
+  border-left: 3px solid var(--accent);
+}
+
+.status h2 { font-size: 18px; line-height: 1.4; font-weight: 600; overflow-wrap: anywhere; }
+.status p { margin-top: 8px; color: var(--ink-muted); line-height: 1.6; font-size: 15px; }
+.retry { display: block; margin-top: 24px; min-height: 44px; padding: 10px 18px; border: 1px solid var(--accent); border-radius: 6px; cursor: pointer; color: var(--accent); font-weight: 600; }
+.login { display: inline-flex; align-items: center; min-height: 44px; margin-top: 20px; font-size: 14px; color: var(--accent); text-decoration: underline; text-underline-offset: 4px; }
+.retry:focus-visible, .login:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.footer { border-top: 1px solid var(--line); padding-top: 20px; font-size: 12px; line-height: 1.6; color: var(--ink-muted); }
+
+.linkForm { margin-top: 24px; }
+.linkForm label { display: block; font-size: 14px; font-weight: 600; }
+.linkForm input { width: 100%; margin-top: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); font-family: monospace; }
+.linkForm p { margin-top: 8px; color: var(--ink-muted); font-size: 13px; line-height: 1.5; }
+.linkForm [role="alert"] { color: var(--danger); }
+.linkForm button:disabled { opacity: 0.5; cursor: wait; }
+
+.courses { margin-top: 32px; }
+.courses h2 { font-size: 22px; font-weight: 600; }
+.courses > p { margin-top: 12px; line-height: 1.6; color: var(--ink-muted); }
+.courses ul { margin-top: 16px; list-style: none; padding: 0; }
+.courses li { padding: 18px 0; border-top: 1px solid var(--line); }
+.courses h3 { font-size: 17px; font-weight: 600; overflow-wrap: anywhere; }
+.courses li p { margin-top: 8px; color: var(--accent); font-size: 14px; }
+.courses li span { display: block; margin-top: 8px; color: var(--ink-muted); font-size: 13px; }
+.courseDetail { margin-top: 20px; }
+.courseDetail h3 { margin-top: 20px; font-size: 22px; }
+.courseDetail > p { margin-top: 12px; line-height: 1.6; color: var(--ink-muted); }
+.courseDetail > .courseCompletion { margin-top: 20px; padding: 14px 16px; border-left: 3px solid var(--accent); background: var(--surface); color: var(--ink); font-weight: 600; }
+.back { color: var(--accent); text-decoration: underline; text-underline-offset: 4px; }
+.material { padding: 20px 0; border-top: 1px solid var(--line); }
+.material:first-of-type { margin-top: 24px; }
+.material h4 { font-size: 18px; font-weight: 600; }
+.materialContent { margin-top: 16px; line-height: 1.65; overflow-wrap: anywhere; }
+.materialContent p + p { margin-top: 12px; }
+.materialContent ul, .materialContent ol { padding-left: 22px; }
+.materialContent a { color: var(--accent); text-decoration: underline; }
+.materialContent img { max-width: 100%; height: auto; }
+.materialContent * { max-width: 100%; }
+.courseSearch { padding: 24px 0; border-top: 1px solid var(--line); }
+.courseSearch h4 { font-size: 19px; font-weight: 600; }
+.courseSearch p { margin-top: 12px; line-height: 1.55; color: var(--ink-muted); }
+.courseSearch form { margin-top: 20px; }
+.courseSearch label { display: block; font-size: 14px; font-weight: 600; }
+.courseSearch textarea { display: block; width: 100%; margin-top: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); font: inherit; resize: vertical; }
+.courseSearch textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.searchResult { margin-top: 20px; padding: 16px; border-left: 3px solid var(--accent); background: var(--surface); }
+.searchResult p { margin: 0; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.searchResult small { display: block; margin-top: 10px; color: var(--ink-muted); }
+.retry:disabled { opacity: 0.55; cursor: default; }
+.managerReport { margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--line); }
+.managerReport > p, .reportResults > p { margin-top: 12px; color: var(--ink-muted); line-height: 1.5; }
+.managerReport [role="alert"] { color: var(--danger); }
+.reportSelect { display: block; margin-top: 24px; font-weight: 600; }
+.reportSelect select { display: block; width: 100%; min-height: 44px; margin-top: 8px; padding: 8px; background: var(--surface); border: 1px solid var(--line); color: var(--ink); font: inherit; }
+.reportSelect input { display: block; width: 100%; min-height: 44px; margin-top: 8px; padding: 8px; background: var(--surface); border: 1px solid var(--line); color: var(--ink); font: inherit; }
+.reportSelect textarea { display: block; width: 100%; margin-top: 8px; padding: 10px; background: var(--surface); border: 1px solid var(--line); color: var(--ink); font: inherit; resize: vertical; }
+.reportAssignment { margin-top: 28px; padding: 20px; border: 1px solid var(--line); background: var(--surface); }
+.reportAssignment h3 { font-size: 18px; font-weight: 600; }
+.reportAssignment p { margin-top: 12px; color: var(--ink-muted); line-height: 1.5; }
+.reportAssignment .retry { margin-top: 20px; }
+.employeeCode { margin-top: 20px; padding: 16px; border-left: 3px solid var(--accent); background: var(--canvas); }
+.employeeCode code { display: block; margin-top: 12px; font-size: 15px; overflow-wrap: anywhere; user-select: all; }
+.reportResults { margin-top: 28px; }
+.reportResults h3 { font-size: 18px; }
+.reportResults li span { color: var(--ink-muted); }
+.workDocuments { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
+.workDocuments h3, .workDocuments h4 { font-size: 19px; font-weight: 600; }
+.workDocuments p { margin-top: 12px; color: var(--ink-muted); line-height: 1.5; }
+.workDocuments [role="status"] { overflow-wrap: anywhere; }
+.documentList { list-style: none; margin-top: 20px; padding: 0; }
+.documentList li { padding: 16px 0; border-top: 1px solid var(--line); }
+.documentList strong, .documentList small { display: block; overflow-wrap: anywhere; }
+.documentList small { margin-top: 4px; color: var(--ink-muted); }
+.documentActions { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; }
+.documentConfirm { margin-top: 16px; padding: 16px; border-left: 3px solid var(--accent); background: var(--surface); }
+.documentConfirm .retry { margin: 16px 0 12px; }
+.documentPreview { margin-top: 24px; padding: 20px; background: var(--surface); }
+.documentPreview h4, .documentPreview h5 { font-size: 17px; font-weight: 600; }
+.documentPreview pre { margin: 16px 0; font: inherit; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.documentRevisionForm { margin-top: 24px; padding: 0 0 20px 16px; border-left: 3px solid var(--accent); }
+.documentTrainingReport { margin-top: 16px; }
+.documentTrainingReport summary { color: var(--accent); cursor: pointer; }
+.documentTrainingReport ul { margin-top: 8px; padding-left: 18px; }
+.documentTrainingReport li { padding: 5px 0; border: 0; }
+.documentCheckPreview, .documentTraining { margin: 24px 0; padding-top: 20px; border-top: 1px solid var(--line); }
+.documentCheckPreview ol { margin-top: 12px; padding-left: 22px; line-height: 1.8; }
+.documentTraining h5 { margin-bottom: 12px; }
+.quiz { padding: 24px 0; border-top: 1px solid var(--line); }
+.quiz h4 { font-size: 19px; font-weight: 600; }
+.quiz > p { margin-top: 12px; line-height: 1.5; color: var(--ink-muted); }
+.quiz [role="alert"] { color: var(--danger); }
+.quizQuestion { border: 0; padding: 18px 0; margin: 0; }
+.quizQuestion legend { font-weight: 600; line-height: 1.5; }
+.quizQuestion label { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; line-height: 1.4; }
+.quizQuestion input { margin-top: 4px; accent-color: var(--accent); flex: none; }
+
+@media (max-width: 360px) {
+  .page { padding-left: 16px; padding-right: 16px; }
+  .header { gap: 8px; }
+  .content { padding-top: 36px; }
+}

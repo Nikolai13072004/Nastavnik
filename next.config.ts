@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  turbopack: { root: __dirname },
+  outputFileTracingRoot: __dirname,
   experimental: {
+    cpus: 2,
     proxyClientMaxBodySize: "2gb",
     serverActions: {
       bodySizeLimit: "2gb",

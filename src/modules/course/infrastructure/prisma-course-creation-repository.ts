@@ -14,8 +14,12 @@ function createTransaction(
 ): CourseCreationTransaction {
   return {
     async createCourse(data) {
+      const owner = await client.user.findUnique({
+        where: { id: data.ownerId },
+        select: { organizationId: true },
+      });
       const created = await client.course.create({
-        data,
+        data: { ...data, organizationId: owner?.organizationId ?? null },
         select: { id: true, title: true },
       });
       return created;

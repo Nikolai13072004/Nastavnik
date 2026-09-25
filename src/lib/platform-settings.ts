@@ -1,4 +1,5 @@
 import { randomInt } from "crypto";
+import { connection } from "next/server";
 import type { PlatformSettings as PrismaPlatformSettings } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import {
@@ -286,6 +287,8 @@ export function toPlatformSettingsState(
 }
 
 export async function getPlatformBranding() {
+  // Branding comes from PostgreSQL and must not be queried during a Docker build.
+  await connection();
   const settings = await getPlatformSettings();
   return {
     siteName: settings.siteName,

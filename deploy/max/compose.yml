@@ -1,0 +1,121 @@
+name: prodigy-max-pilot
+
+x-app: &app
+  image: prodigy-max:pilot-20260925-knowledge-v2
+  env_file: .env
+  init: true
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: ["ALL"]
+  logging:
+    driver: json-file
+    options: { max-size: "5m", max-file: "2" }
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: prodigy_max
+      POSTGRES_DB: prodigy_max
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a new pilot-only password}
+    volumes: ["database:/var/lib/postgresql/data"]
+    networks: [backend]
+    mem_limit: 384m
+    cpus: 0.35
+    pids_limit: 80
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U prodigy_max -d prodigy_max"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+
+  web:
+    <<: *app
+    environment:
+      MAX_LMS_LINKS: disabled
+      MAX_DISABLE_EMAIL: "true"
+    networks: [backend, egress]
+    mem_limit: 768m
+    cpus: 0.7
+    pids_limit: 80
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  gateway:
+    image: nginx:stable-alpine
+    user: "101:101"
+    entrypoint: ["nginx"]
+    command: ["-g", "daemon off;"]
+    volumes: ["./nginx.conf:/etc/nginx/nginx.conf:ro"]
+    tmpfs: ["/tmp:size=16m,mode=1777"]
+    read_only: true
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    networks: [backend, proxy]
+    mem_limit: 64m
+    cpus: 0.15
+    pids_limit: 24
+    restart: unless-stopped
+    depends_on:
+      web: { condition: service_healthy }
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: coolify
+      traefik.http.routers.prodigy-max-pilot.rule: "Host(`${MAX_PUBLIC_HOST:?Set the pilot hostname}`)"
+      traefik.http.routers.prodigy-max-pilot.entrypoints: https
+      traefik.http.routers.prodigy-max-pilot.tls: "true"
+      traefik.http.routers.prodigy-max-pilot.tls.certresolver: letsencrypt
+      traefik.http.routers.prodigy-max-pilot.service: prodigy-max-pilot
+      traefik.http.services.prodigy-max-pilot.loadbalancer.server.port: "8080"
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+
+  migrate:
+    <<: *app
+    profiles: [tools]
+    networks: [backend]
+    mem_limit: 256m
+    cpus: 0.3
+    pids_limit: 48
+    command: ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
+    depends_on:
+      db: { condition: service_healthy }
+
+  worker:
+    <<: *app
+    profiles: [bot]
+    networks: [backend, egress]
+    environment:
+      NODE_OPTIONS: --max-old-space-size=128
+      NODE_EXTRA_CA_CERTS: /run/max-ca.pem
+      MAX_DISABLE_EMAIL: "true"
+    volumes: ["./max-ca.pem:/run/max-ca.pem:ro"]
+    mem_limit: 192m
+    cpus: 0.2
+    pids_limit: 48
+    # No restart loop on UNCERTAIN: operator must inspect delivery before restarting.
+    restart: "no"
+    command: ["node", "node_modules/tsx/dist/cli.mjs", "scripts/max-worker.ts", "loop"]
+    depends_on:
+      db: { condition: service_healthy }
+
+networks:
+  backend:
+    internal: true
+  egress: {}
+  proxy:
+    external: true
+    name: coolify
+
+volumes:
+  database: {}
