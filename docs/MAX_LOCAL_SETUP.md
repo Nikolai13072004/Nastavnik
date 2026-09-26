@@ -4,19 +4,19 @@
 
 Из папки `prodigy`, при запущенном Docker:
 
-Если builder `max-review-build` ещё не создан, один раз настройте лимиты:
+Если builder `prodigy-max-build` ещё не создан, один раз настройте лимиты:
 
 ```sh
-docker buildx create --name max-review-build --driver docker-container --driver-opt memory=4g,cpu-period=100000,cpu-quota=200000
+docker buildx create --name prodigy-max-build --driver docker-container --driver-opt memory=4g,cpu-period=100000,cpu-quota=200000
 ```
 
 ```sh
 python deploy/max/create-review-env.py
-docker buildx build --builder max-review-build --load -f Dockerfile.max -t prodigy-max:review-20260926 .
-docker compose --env-file deploy/max/.env.review -f deploy/max/compose.review.yml up -d --wait
-docker compose --env-file deploy/max/.env.review -f deploy/max/compose.review.yml exec web node node_modules/tsx/dist/cli.mjs scripts/max-pilot-setup.ts setup
-docker compose --env-file deploy/max/.env.review -f deploy/max/compose.review.yml exec web node node_modules/tsx/dist/cli.mjs scripts/max-pilot-setup.ts assessment
-docker compose --env-file deploy/max/.env.review -f deploy/max/compose.review.yml exec web node node_modules/tsx/dist/cli.mjs scripts/max-pilot-setup.ts scope
+docker buildx build --builder prodigy-max-build --load -f Dockerfile.max -t prodigy-max:review-20260926 .
+docker compose --env-file deploy/max/.env.review -f deploy/max/compose.review.yml up -d --no-build --pull never --wait
+docker compose --env-file deploy/max/.env.review -f deploy/max/compose.review.yml run --rm --no-deps --entrypoint node web node_modules/tsx/dist/cli.mjs scripts/max-pilot-setup.ts setup
+docker compose --env-file deploy/max/.env.review -f deploy/max/compose.review.yml run --rm --no-deps --entrypoint node web node_modules/tsx/dist/cli.mjs scripts/max-pilot-setup.ts assessment
+docker compose --env-file deploy/max/.env.review -f deploy/max/compose.review.yml run --rm --no-deps --entrypoint node web node_modules/tsx/dist/cli.mjs scripts/max-pilot-setup.ts scope
 ```
 
 Не заменяйте ограниченную сборку обычным `next build` или Turbopack на Windows.
@@ -48,6 +48,44 @@ docker compose --env-file deploy/max/.env.review -f deploy/max/compose.review.ym
 AI отдельно требует Vedomo, сервисный ключ и mapping документа; эти команды
 не включают AI и не подтверждают чистый запуск всей связки.
 
+## Совместная проверка Prodigy и Vedomo
+
+Этот режим проверяет пустые базы, настоящий поиск BGE-M3 и интеграцию через
+HTTPS. Генерация AI и отправка в MAX отключены, реальные ключи не нужны.
+Не запускать на VPS. Другие локальные контейнеры должны сохранить свои порты;
+порт 53100 нужен только этому стенду. Обычный review-стенд сначала остановить.
+
+Подготовка: локальные образы `prodigy-max:chat-navigation-20260927`,
+`vedomo-backend:max-knowledge-20260926`, `postgres:16-alpine` и
+`nginx:stable-alpine`. Prodigy собирается через ограниченный builder выше,
+с новым тегом. Vedomo собирается отдельно по его инструкции. Нужен существующий
+том `vedomo-max-local-models` с кешем `BAAI/bge-m3`; он подключается только для
+чтения. Без кеша режим завершится ошибкой, а не начнёт скачивать модель.
+Полностью автоматический запуск из исходников с GigaChat пока не готов.
+
+Команды из папки `prodigy`, PowerShell:
+
+```powershell
+# Только при первом запуске. Существующие секреты не заменять.
+python deploy/max/create-review-env.py --joint
+$jointCompose = @('--env-file', 'deploy/max/.env.joint-review', '-f', 'deploy/max/compose.review.yml', '-f', 'deploy/max/compose.joint-review.yml')
+docker compose @jointCompose up -d --no-build --pull never --wait --wait-timeout 180
+docker compose @jointCompose exec -T vedomo-api python /run/setup-joint-review.py
+docker compose @jointCompose run --rm -T --no-deps --entrypoint node web node_modules/tsx/dist/cli.mjs scripts/joint-review-smoke.ts
+docker compose @jointCompose stop
+```
+
+Проверка создаёт учебный источник и связывает его по точному SHA-256. Проверяет
+вход по паролю, права HR, обязательное чтение, одну попытку теста и отчёт;
+свои временные профили удаляет. Повтор использует сохранённые учебные данные.
+Локальный сервисный ключ действует сутки; после истечения нужен новый отдельный
+review-стенд, а не замена секретов существующей базы.
+
+Секреты находятся в `.env.joint-review`, он не публикуется. Собственные тома
+начинаются с `prodigy-max-joint-review`; базы не открывают порты. Внутренний
+сертификат используется только контейнерами, системное доверие не меняется.
+`stop` сохраняет данные. Не применять глобальный prune или удаление тома моделей.
+
 ## Разработка
 
 Команды выполняются из папки `prodigy`. Нужен локальный `.env` с параметрами отдельной dev-БД. Для установки зависимостей нужен интернет; запускать `npm ci` только при необходимости.
@@ -70,7 +108,10 @@ npm run dev:safe
 
 ## MAX и привязка
 
-Сотрудник получает одноразовый код в `/connect-max` после входа в LMS и вводит его в Mini App. Код действует 15 минут и связывает только его собственный профиль. MAX-сессия не заменяет LMS-вход и не выдаёт права HR.
+По умолчанию HR выдаёт личный одноразовый код; сотрудник вводит его внутри MAX.
+Код действует 15 минут и связывает только его профиль. Входить в веб-LMS для
+обучения не нужно. Необязательный путь через `/connect-max` включается явно
+через `MAX_LMS_LINKS=enabled`. MAX-сессия не создаёт веб-сессию и не выдаёт права HR.
 
 Для проверки токена бота укажите `MAX_BOT_TOKEN` и `MAX_BOT_USERNAME`, затем выполните `npm run max:check`. Команда проверяет бота через GET `/me` и ничего не публикует. Отключать проверку TLS при ошибке сертификата нельзя.
 

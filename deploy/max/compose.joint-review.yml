@@ -1,0 +1,128 @@
+# Local integration check. Select together with compose.review.yml, never on the VPS.
+name: prodigy-max-joint-review
+
+services:
+  migrate:
+    image: ${REVIEW_PRODIGY_IMAGE:?Build the review image first}
+
+  web:
+    image: ${REVIEW_PRODIGY_IMAGE:?Build the review image first}
+    environment:
+      MAX_JOINT_REVIEW: "true"
+      GOMAXPROCS: "2"
+      RAYON_NUM_THREADS: "2"
+      UV_THREADPOOL_SIZE: "2"
+      APP_BASE_URL: https://joint-gateway:8443
+      MAX_BOT_TOKEN: ${REVIEW_FAKE_BOT_TOKEN:?Create the joint review environment}
+      MAX_VEDOMO_ENABLED: "true"
+      MAX_VEDOMO_COURSE_ID: max-pilot-onboarding-course
+      MAX_VEDOMO_ORIGIN: https://joint-gateway:8443
+      MAX_VEDOMO_SERVICE_TOKEN: ${REVIEW_SERVICE_TOKEN:?Create the joint review environment}
+      NODE_EXTRA_CA_CERTS: /run/trust/ca.pem
+    volumes:
+      - review_trust:/run/trust:ro
+      - ../../scripts/joint-review-smoke.ts:/app/scripts/joint-review-smoke.ts:ro
+      - ../../docs/drafts/onboarding-policy.md:/run/onboarding-policy.md:ro
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      review-tls: {condition: service_completed_successfully}
+
+  review-tls:
+    image: ${REVIEW_VEDOMO_IMAGE:?Build the Vedomo image first}
+    entrypoint: ["python", "/run/create-review-tls.py"]
+    volumes:
+      - ./create-review-tls.py:/run/create-review-tls.py:ro
+      - review_tls:/tls
+      - review_trust:/trust
+    networks: [backend]
+    mem_limit: 128m
+    cpus: 0.2
+    pids_limit: 40
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+
+  vedomo-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: max_joint_review
+      POSTGRES_DB: max_joint_review
+      POSTGRES_PASSWORD: ${REVIEW_VEDOMO_DB_PASSWORD:?Create the joint review environment}
+    volumes: ["vedomo_database:/var/lib/postgresql/data"]
+    networks: [backend]
+    mem_limit: 384m
+    cpus: 0.5
+    pids_limit: 80
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U max_joint_review -d max_joint_review"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  vedomo-api:
+    image: ${REVIEW_VEDOMO_IMAGE:?Build the Vedomo image first}
+    environment:
+      DATABASE_URL: postgresql+psycopg://max_joint_review:${REVIEW_VEDOMO_DB_PASSWORD:?Create the joint review environment}@vedomo-db:5432/max_joint_review
+      JWT_SECRET_KEY: ${REVIEW_JWT_SECRET:?Create the joint review environment}
+      REVIEW_SERVICE_TOKEN: ${REVIEW_SERVICE_TOKEN:?Create the joint review environment}
+      MAX_JOINT_REVIEW: "true"
+      PYTHONPATH: /app
+      AUTH_COOKIE_SECURE: "true"
+      APP_BASE_URL: https://joint-gateway:8443
+      EMAIL_BACKEND: console
+      ACCOUNT_DELETION_WORKER: "false"
+      LLM_MODE: ollama
+      OLLAMA_URL: http://127.0.0.1:11434/api/generate
+      OLLAMA_MODEL: review-generation-disabled
+      EMBEDDING_MODEL: BAAI/bge-m3
+      USE_RERANKER: "false"
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      OMP_NUM_THREADS: "2"
+      TOKENIZERS_PARALLELISM: "false"
+    volumes:
+      - vedomo_documents:/app/docs
+      - vedomo_data:/app/data
+      - cached_models:/models:ro
+      - ../../scripts/setup-joint-review.py:/run/setup-joint-review.py:ro
+      - ../../docs/drafts/onboarding-policy.md:/run/onboarding-policy.md:ro
+    networks: [backend]
+    depends_on:
+      vedomo-db: {condition: service_healthy}
+    mem_limit: 4g
+    cpus: 2
+    pids_limit: 160
+    init: true
+    security_opt: ["no-new-privileges:true"]
+    logging:
+      driver: json-file
+      options: {max-size: "5m", max-file: "2"}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  joint-gateway:
+    image: nginx:stable-alpine
+    volumes:
+      - ./nginx.joint-review.conf:/etc/nginx/nginx.conf:ro
+      - review_tls:/run/tls:ro
+    networks: [backend]
+    depends_on:
+      gateway: {condition: service_started}
+      vedomo-api: {condition: service_healthy}
+      review-tls: {condition: service_completed_successfully}
+    mem_limit: 64m
+    cpus: 0.2
+    pids_limit: 40
+
+volumes:
+  vedomo_database:
+  vedomo_documents:
+  vedomo_data:
+  review_tls:
+  review_trust:
+  cached_models:
+    external: true
+    name: ${REVIEW_MODEL_VOLUME:?Choose an existing BGE-M3 cache, mounted read-only}

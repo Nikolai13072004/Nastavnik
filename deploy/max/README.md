@@ -11,7 +11,7 @@
 
 ## Обновление
 
-Собирать образ локально, не на общем VPS. Тег обновления: `prodigy-max:chat-ux-final-20260926`, overlay `compose.chat-ux.yml`. Перед загрузкой нового образа проверьте свободное место, состояние своих контейнеров и создайте резервную копию только пилотной БД. Файл `.env` и токены не помещать в образ или логи. После передачи образа сверить SHA-256 архива.
+Собирать образ локально, не на общем VPS. Текущий тег: `prodigy-max:chat-navigation-20260927`; выбрать `compose.yml`, `compose.chat-ux.yml`, `compose.knowledge-ui.yml` и `compose.chat-navigation.yml`. Перед загрузкой нового образа проверьте свободное место, состояние своих контейнеров и создайте резервную копию только пилотной БД. Файл `.env` и токены не помещать в образ или логи. После передачи образа сверить SHA-256 архива.
 
 На сервере сначала проверить новый Compose через `docker compose config --quiet`, затем применить миграции и обновить только нужные сервисы. Не выполнять глобальные Docker prune, restart или `down -v`. На последнем обновлении пересозданы web и worker пилота. БД, gateway и соседние проекты не перезапускались.
 
@@ -25,9 +25,9 @@ gateway-контейнере, сохранить старый файл и вып
 
 ```sh
 cd /opt/prodigy-max
-docker compose -f compose.yml -f compose.chat-ux.yml config --quiet
-docker compose -f compose.yml -f compose.chat-ux.yml ps
-docker compose -f compose.yml -f compose.chat-ux.yml logs --tail 30 web gateway
+docker compose -f compose.yml -f compose.chat-ux.yml -f compose.knowledge-ui.yml -f compose.chat-navigation.yml config --quiet
+docker compose -f compose.yml -f compose.chat-ux.yml -f compose.knowledge-ui.yml -f compose.chat-navigation.yml ps
+docker compose -f compose.yml -f compose.chat-ux.yml -f compose.knowledge-ui.yml -f compose.chat-navigation.yml logs --tail 30 web gateway
 ```
 
 Проверить HTTPS без отключения TLS: `/max` возвращает 200, `/login` и `/admin` - 404, MAX API без сессии - 401. Не проводить нагрузочный тест на общем сервере.
@@ -144,8 +144,51 @@ docker build -f deploy/max/Dockerfile.chat-recovery -t prodigy-max:chat-recovery
 открывается выбор назначенного курса. Старые ответы теста не записываются:
 показывается текущий вопрос. Возврат к курсам сохраняет действующий черновик.
 
+## Подключение источников и первый вход, 26 сентября
+
+Совместное обновление включает MAX UI и кнопку подключения готового источника.
+Vedomo использует `vedomo-backend:max-knowledge-20260926` и дополнительный
+`docker-compose.max-knowledge.yml`. Backend и собственный gateway обновлены;
+схема и ключ интеграции сохранены. Docker DNS gateway обновляется раз в 5 секунд.
+Prodigy разрешает только точный новый маршрут `/api/max/documents/knowledge`,
+который проверяет собственную MAX-сессию и текущие права HR.
+
+По умолчанию код выдаёт HR, сотрудник связывает профиль внутри MAX.
+`MAX_LMS_LINKS=enabled` явно включает необязательный веб-вариант для обычной LMS;
+на публичном пилоте оставить `disabled`. Вход MAX не создаёт веб-сессию LMS.
+
+Проверки `max-knowledge-connection-smoke.ts --create-temporary-profiles` и
+`max-onboarding-smoke.ts --create-temporary-profiles` прошли через HTTPS.
+Они удаляют свои временные профили и не сбрасывают историю сотрудника.
+Отдельно проверены настоящий GigaChat, точный источник и отказ без доступа.
+
+Дампы обеих БД перед установкой: `backups/pre-knowledge-ui-20260926-retry2.dump`
+в соответствующих папках пилотов. Перед последними подсказками сохранены
+`backups/pre-guidance-20260926.dump` и `backups/compose-before-guidance-20260926.yml`.
+Для отката только последнего web/worker вернуть этот overlay и выполнить
+`up -d --no-deps --no-build web worker` с теми же тремя Compose-файлами.
+Окружение, базы, gateway, Vedomo и неподтверждённую отправку не менять.
+
+## Навигация и зависимости, 27 сентября
+
+Обновлены только web и worker. Миграций нет, ключи и результаты сохранены.
+В списке тестов одна кнопка продолжения, «Назад» возвращает на один уровень.
+Временная ошибка получения задания повторяется до трёх раз; отправка и завершение
+доставки не повторяются. Неизвестная ошибка по-прежнему останавливает worker.
+Точная причина предыдущей остановки неизвестна, старый `UNCERTAIN` сохранён.
+
+До обновления сохранены `backups/pre-chat-navigation-20260927.dump` и закрытая
+копия `.env`. Для отката выбрать прежние три Compose-файла без
+`compose.chat-navigation.yml` и обновить только `web worker` с
+`--no-deps --no-build`. Базу и ключи оставить.
+
+Прошли HTTPS-проверки HR, обучения и настоящего ответа GigaChat с источником.
+`npm audit` показывает 0 уязвимостей. Обновление Nodemailer закреплено override;
+вход по паролю проверен, email-вход не проверялся. На пилоте почта отключена.
+Локальный запуск с пустыми базами описан в [MAX_LOCAL_SETUP.md](../../docs/MAX_LOCAL_SETUP.md).
+
 ## До полного релиза
 
-Нужны проверка HR-экрана с отдельного MAX-аккаунта, разбор оставшихся предупреждений `npm audit`, проверка восстановления из резервной копии и полный тест AI на телефоне. Настоящие документы сотрудников пока не подключать. При зависшей отправке бота не возвращать очередь в `PENDING` без проверки доставки: возможны дубли сообщений.
+Нужны проверка HR-экрана с отдельного MAX-аккаунта, чистый запуск с генерацией AI, полная репетиция восстановления и тест AI на телефоне. Настоящие документы сотрудников пока не подключать. При зависшей отправке бота не возвращать очередь в `PENDING` без проверки доставки: возможны дубли сообщений.
 
 Корневой сертификат MAX монтируется только в worker через `max-ca.pem`. Не устанавливать его на весь сервер и не отключать проверку TLS. Источник: `https://gu-st.ru/content/lending/russian_trusted_root_ca_pem.crt`; отпечаток нужно сверять при обновлении сертификата.

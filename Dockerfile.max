@@ -5,9 +5,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS=--max-old-space-size=2048
 ENV RAYON_NUM_THREADS=2
 ENV UV_THREADPOOL_SIZE=2
+RUN npm install --global npm@11.13.0 --no-audit --no-fund --fetch-timeout=30000 --fetch-retries=1
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
-RUN npm ci
+RUN npm ci --no-audit --no-fund --fetch-timeout=30000 --fetch-retries=1
 COPY . .
 # No secrets, live database or Windows dependencies are available in this build context.
 RUN npx next build --webpack

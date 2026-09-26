@@ -17,6 +17,12 @@ export type MappingResult =
   | "HASH_MISMATCH"
   | "CONFLICT";
 
+type MappingAuthorization = {
+  organizationId: string;
+  publishedSnapshotHash: string;
+  findManager(transaction: Prisma.TransactionClient): Promise<{ id: string; login: string; name: string } | null>;
+};
+
 function validateInput(input: MappingInput) {
   for (const id of [input.courseId, input.courseDocumentId, input.vedomoDocumentId]) {
     if (!id || id.length > 128) throw new Error("Invalid document mapping ID");
@@ -26,10 +32,16 @@ function validateInput(input: MappingInput) {
   }
 }
 
-export async function approveMaxKnowledgeDocument(db: PrismaClient, input: MappingInput): Promise<MappingResult> {
+export async function approveMaxKnowledgeDocument(
+  db: PrismaClient,
+  input: MappingInput,
+  authorization?: MappingAuthorization,
+): Promise<Exclude<MappingResult, "REVOKED"> | "FORBIDDEN"> {
   validateInput(input);
 
   return db.$transaction(async (transaction) => {
+    const actor = authorization ? await authorization.findManager(transaction) : null;
+    if (authorization && !actor) return "FORBIDDEN";
     const course = await transaction.course.findUnique({
       where: { id: input.courseId },
       select: { organizationId: true, status: true, publishedSnapshotJson: true },
@@ -45,6 +57,10 @@ export async function approveMaxKnowledgeDocument(db: PrismaClient, input: Mappi
         !document || document.organizationId !== course.organizationId || document.courseId !== input.courseId) {
       return "NOT_FOUND";
     }
+    if (authorization && course.organizationId !== authorization.organizationId) return "NOT_FOUND";
+    const publishedSnapshotHash = createHash("sha256")
+      .update(course.publishedSnapshotJson).digest("hex");
+    if (authorization && publishedSnapshotHash !== authorization.publishedSnapshotHash) return "CONFLICT";
     if (!document.approvedAt || document.revokedAt) return "NOT_APPROVED";
     if (!/\.(txt|md)$/i.test(document.sourceName)) return "UNSUPPORTED_FORMAT";
     if (document.contentHash !== input.vedomoDocumentHash ||
@@ -65,8 +81,6 @@ export async function approveMaxKnowledgeDocument(db: PrismaClient, input: Mappi
     if (existing && (existing.vedomoDocumentId !== input.vedomoDocumentId ||
         existing.courseDocumentId !== input.courseDocumentId)) return "CONFLICT";
 
-    const publishedSnapshotHash = createHash("sha256")
-      .update(course.publishedSnapshotJson).digest("hex");
     if (existing) {
       await transaction.maxKnowledgeDocument.update({
         where: { id: existing.id },
@@ -88,6 +102,17 @@ export async function approveMaxKnowledgeDocument(db: PrismaClient, input: Mappi
           publishedSnapshotHash,
         },
       });
+    }
+    if (actor) {
+      await transaction.auditLogEvent.create({ data: {
+        actorId: actor.id,
+        actorLogin: actor.login,
+        actorName: actor.name,
+        action: "max_document:connect_ai",
+        objectType: "max_course_document",
+        objectId: input.courseDocumentId,
+        metadataJson: JSON.stringify({ courseId: input.courseId, organizationId: course.organizationId }),
+      } });
     }
     return "APPROVED";
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });

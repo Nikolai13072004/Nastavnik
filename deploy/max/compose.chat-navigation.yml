@@ -1,0 +1,7 @@
+services:
+  web:
+    image: prodigy-max:chat-navigation-20260927
+  worker:
+    image: prodigy-max:chat-navigation-20260927
+  migrate:
+    image: prodigy-max:chat-navigation-20260927

@@ -65,6 +65,44 @@ export function createVedomoClient(origin: string, token: string, fetcher: typeo
   }
 
   return {
+    async findDocument(organizationId: string, courseId: string, documentHash: string) {
+      if (!/^[A-Za-z0-9_-]{1,128}$/.test(organizationId) ||
+          !/^[A-Za-z0-9_-]{1,128}$/.test(courseId) || !/^[a-f0-9]{64}$/.test(documentHash)) {
+        throw new VedomoClientError("configuration");
+      }
+      try {
+        const response = await fetcher(
+          `${new URL(endpoint).origin}/api/integrations/prodigy/documents/by-hash/${documentHash}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "X-Prodigy-Organization-ID": organizationId,
+              "X-Prodigy-Course-ID": courseId,
+            },
+            signal: AbortSignal.timeout(10_000),
+            redirect: "error",
+            cache: "no-store",
+          },
+        );
+        if (!response.ok) {
+          await response.body?.cancel().catch(() => undefined);
+          if (response.status === 404) return null;
+          throw new VedomoClientError("http", response.status);
+        }
+        const data = await readResponse(response);
+        if (!isObject(data) || typeof data.document_id !== "string" ||
+            !/^[A-Za-z0-9_-]{1,128}$/.test(data.document_id) || data.document_hash !== documentHash ||
+            typeof data.title !== "string" || !data.title.trim()) {
+          throw new VedomoClientError("response");
+        }
+        return { documentId: data.document_id, documentHash, title: data.title };
+      } catch (error) {
+        if (error instanceof VedomoClientError) throw error;
+        if (error instanceof SyntaxError) throw new VedomoClientError("response");
+        throw new VedomoClientError("transport");
+      }
+    },
     async getDocument(organizationId: string, courseId: string, documentId: string) {
       if (!/^[A-Za-z0-9_-]{1,128}$/.test(organizationId) ||
           !/^[A-Za-z0-9_-]{1,128}$/.test(courseId) ||

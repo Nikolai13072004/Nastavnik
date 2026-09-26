@@ -267,7 +267,7 @@ test("pause keeps answers; free text during a quiz does not call AI", async () =
   const first = await begin(f);
   const second = await f.flow(callback(first, "1"));
   const paused = await f.flow(callback(second, "Продолжить позже"));
-  const resumed = await f.flow(callback(paused, "Продолжить тест"));
+  const resumed = await f.flow(callback(paused, "Продолжить: Проверка"));
   assert.match(resumed.text!, /Вопрос 2 из 2/);
   assert.match(
     (await f.flow(text("Как получить доступ?"))).text!,
@@ -287,7 +287,8 @@ test("uncertain assessment submission preserves the exact answers for idempotent
   assert.match((await f.flow(callback(second, "1"))).text!, /недоступно/);
   assert.deepEqual(f.state()?.quiz?.answers, { q1: 0, q2: 0 });
   f.learning.submit = submit;
-  assert.match((await f.flow(text("тест"))).text!, /Тест пройден/);
+  const list = await f.flow(text("тест"));
+  assert.match((await f.flow(callback(list, "Продолжить: Проверка"))).text!, /Тест пройден/);
   assert.equal(f.counts().starts, 1);
 });
 
@@ -410,7 +411,7 @@ test("confirmation returns to the test list, including its original page", async
   const secondPage = await f.flow(callback(firstPage, "Ещё тесты"));
   assert.match(secondPage.text!, /Страница 2 из 3/);
   const confirmation = await f.flow(callback(secondPage, "Проверка 7"));
-  const returned = await f.flow(callback(confirmation, "К списку тестов"));
+  const returned = await f.flow(callback(confirmation, "Назад"));
   assert.match(returned.text!, /Страница 2 из 3/);
   assert.ok(callback(returned, "Проверка 7"));
   assert.equal(f.counts().starts, 0);
@@ -422,8 +423,9 @@ test("a paused quiz allows progress and AI and resumes without spending another 
   const second = await f.flow(callback(first, "1"));
   const paused = await f.flow(callback(second, "Продолжить позже"));
   assert.match(paused.text!, /Выберите тест/);
-  assert.ok(callback(paused, "Другой курс"));
-  const progress = await f.flow(callback(paused, "Прогресс"));
+  assert.equal(paused.buttons?.flat().length, 2);
+  const panel = await f.flow(callback(paused, "Назад"));
+  const progress = await f.flow(callback(panel, "Прогресс"));
   assert.match(progress.text!, /Материалы/);
   await f.flow(callback(progress, "Спросить AI"));
   const answer = await f.flow(text("Как устроено обучение?"));
@@ -491,7 +493,8 @@ test("answer buttons do not reload an entire course; sources and AI render Markd
   const second = await f.flow(callback(first, "1"));
   assert.equal(f.courseReads(), reads);
   const paused = await f.flow(callback(second, "Продолжить позже"));
-  await f.flow(callback(paused, "Спросить AI"));
+  const panel = await f.flow(callback(paused, "Назад"));
+  await f.flow(callback(panel, "Спросить AI"));
   const ask = f.learning.ask;
   f.learning.ask = async (...args) => ({
     ...(await ask(...args)),
@@ -516,7 +519,7 @@ test("a quiz completed in Mini App is not resumed or submitted again in chat", a
     ...course,
     quizzes: [{ ...course.quizzes[0], status: "PASSED" }],
   });
-  const result = await f.flow(callback(paused, "Продолжить тест"));
+  const result = await f.flow(callback(paused, "Продолжить: Проверка"));
   assert.match(result.text!, /уже пройден/);
   assert.equal(f.state()?.quiz, undefined);
   assert.equal(f.counts().submits, 0);
@@ -531,17 +534,18 @@ test("progress after assignment expiry shows the empty menu, not a course search
   assert.equal(f.state()?.courseSearch, "");
 });
 
-test("confirmation cannot restart a draft passed in Mini App while the confirmation was open", async () => {
+test("test-list navigation never submits prepared answers and has no duplicate resume button", async () => {
   const f = fixture();
   const first = await begin(f);
-  const paused = await f.flow(callback(first, "Продолжить позже"));
-  const confirmation = await f.flow(callback(paused, "Проверка"));
-  f.learning.course = async () => ({
-    ...course,
-    quizzes: [{ ...course.quizzes[0], status: "PASSED" }],
-  });
-  const result = await f.flow(callback(confirmation, "Начать или продолжить"));
-  assert.match(result.text!, /уже пройден/);
-  assert.equal(f.state()?.quiz, undefined);
+  const second = await f.flow(callback(first, "1"));
+  f.learning.submit = async () => { throw new ChatLearningError("UNAVAILABLE"); };
+  await f.flow(callback(second, "2"));
+  const list = await f.flow(text("тест"));
+  assert.deepEqual(list.buttons?.flat().map((button) => button.text), ["Продолжить: Проверка", "Назад"]);
+  const panel = await f.flow(callback(list, "Назад"));
+  assert.match(panel.text!, /Выберите действие/);
+  const returned = await f.flow(callback(panel, "Другие тесты"));
+  assert.match(returned.text!, /Выберите тест/);
+  assert.deepEqual(f.state()?.quiz?.answers, { q1: 0, q2: 1 });
   assert.deepEqual(f.counts(), { starts: 1, submits: 0, asks: 0 });
 });

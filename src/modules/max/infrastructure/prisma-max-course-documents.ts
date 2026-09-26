@@ -43,7 +43,7 @@ async function activeRecipients(client: Prisma.TransactionClient, organizationId
   }).isActive).map(({ id, name }) => ({ id, name }));
 }
 
-async function findManager(identity: MaxLearnerIdentity, client: DocumentClient) {
+export async function findManager(identity: MaxLearnerIdentity, client: DocumentClient) {
   const link = await client.maxAccountLink.findUnique({
     where: { maxUserId: identity.maxUserId },
     select: {
@@ -254,20 +254,32 @@ export async function listMaxManagerDocuments(identity: MaxLearnerIdentity, cour
   if (!await findManager(identity, prisma)) return null;
   const course = await prisma.course.findFirst({
     where: { id: courseId, organizationId: identity.organizationId, status: "PUBLISHED" },
-    select: { id: true },
+    select: { id: true, publishedSnapshotJson: true },
   });
   if (!course) return null;
-  return prisma.maxCourseDocument.findMany({
+  const documents = await prisma.maxCourseDocument.findMany({
     where: { organizationId: identity.organizationId, courseId },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: 100,
     select: {
       id: true, title: true, sourceName: true, approvedAt: true, revokedAt: true, createdAt: true,
-      supersedesId: true, versionNumber: true, changeSummary: true,
+      supersedesId: true, versionNumber: true, changeSummary: true, contentHash: true,
+      knowledgeDocuments: { where: { revokedAt: null }, select: {
+        organizationId: true, courseId: true, publishedSnapshotHash: true, vedomoDocumentHash: true,
+      } },
       trainingRecipients: { select: { userId: true, viewedAt: true, passedAt: true, attempts: true,
         user: { select: { name: true } } } },
     },
   });
+  const snapshotHash = course.publishedSnapshotJson
+    ? createHash("sha256").update(course.publishedSnapshotJson).digest("hex") : null;
+  return documents.map(({ knowledgeDocuments, contentHash, ...document }) => ({
+    ...document,
+    aiConnected: Boolean(document.approvedAt && !document.revokedAt && snapshotHash &&
+      knowledgeDocuments.some((mapping) => mapping.organizationId === identity.organizationId &&
+        mapping.courseId === courseId && mapping.publishedSnapshotHash === snapshotHash &&
+        mapping.vedomoDocumentHash === contentHash)),
+  }));
 }
 
 export async function getMaxDocumentAudience(identity: MaxLearnerIdentity, courseId: string) {

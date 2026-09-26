@@ -42,5 +42,9 @@ export async function getMaxManagerDocuments(identity: MaxLearnerIdentity, cours
   const documents = await listMaxManagerDocuments(identity, courseId);
   if (!documents) return { error: "NOT_FOUND" } as const;
   const audience = await getMaxDocumentAudience(identity, courseId);
-  return { documents, audience } as const;
+  return {
+    documents,
+    audience,
+    aiConnectionEnabled: process.env.MAX_VEDOMO_ENABLED === "true" && courseId === process.env.MAX_VEDOMO_COURSE_ID,
+  } as const;
 }

@@ -19,7 +19,7 @@ type LaunchState =
   | { kind: "verified"; firstName: string; employee: Employee | null; session: { token: string; expiresAt: string } | null; managerAccess: boolean }
   | { kind: "error"; message: string };
 
-export function MaxLaunch({ showLmsLinks = true, knowledgeCourseId }: {
+export function MaxLaunch({ showLmsLinks = false, knowledgeCourseId }: {
   showLmsLinks?: boolean;
   knowledgeCourseId?: string;
 }) {
@@ -135,8 +135,9 @@ export function MaxLaunch({ showLmsLinks = true, knowledgeCourseId }: {
           onRenew={() => void verify()} />}
         {state.kind === "verified" && state.employee && !state.session && <p>Не удалось открыть учебную сессию. Откройте приложение повторно.</p>}
         {state.kind === "error" && <Button stretched size="medium" iconBefore={<RefreshCw size={20} />} onClick={() => void verify()}>Повторить</Button>}
-        {showLmsLinks ? <div className={styles.actions}>
-          <Button asChild stretched size="medium" iconBefore={<Link2 size={20} />}><Link href="/connect-max">Получить код в LMS</Link></Button>
+        {showLmsLinks && state.kind === "verified" && !state.employee ? <div className={styles.actions}>
+          <p>Для получения кода войдите в свою учётную запись LMS. После входа откроется страница привязки. Если доступа нет, обратитесь к HR.</p>
+          <Button asChild stretched size="medium" iconBefore={<Link2 size={20} />}><Link href="/connect-max">Войти в LMS и получить код</Link></Button>
           <Button asChild stretched size="medium" variant="secondary"><Link href="/login">Открыть веб-версию</Link></Button>
         </div> : null}
 

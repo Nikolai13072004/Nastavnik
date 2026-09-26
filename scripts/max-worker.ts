@@ -15,6 +15,8 @@ import { createListMaxCourses } from "../src/modules/max/application/list-course
 import { createChatInputCodec } from "../src/modules/max/infrastructure/chat-input-codec";
 import { createChatLearningClient } from "../src/modules/max/infrastructure/chat-learning-client";
 import { createPrismaChatSessions } from "../src/modules/max/infrastructure/prisma-chat-session-repository";
+import { retryBotClaim } from "../src/modules/max/infrastructure/retry-bot-claim";
+import { Prisma } from "@prisma/client";
 
 config({ quiet: true });
 
@@ -43,6 +45,10 @@ async function main() {
       })
     : null;
   const inputCodec = createChatInputCodec(token);
+  const repository = {
+    ...prismaBotDeliveryRepository,
+    claim: (botUsername: string) => retryBotClaim(() => prismaBotDeliveryRepository.claim(botUsername)),
+  };
   const sendMenu = async (userId: number, botUsername: string) => {
     if (chatFlow) {
       const reply = await chatFlow(String(userId), {
@@ -82,7 +88,7 @@ async function main() {
   do {
     const processingStarted = performance.now();
     const result = await deliverNextBotMessage(
-      prismaBotDeliveryRepository,
+      repository,
       username,
       chatEnabled ? sendMenu : client.sendWelcome,
       client.sendRevision,
@@ -113,11 +119,14 @@ async function main() {
 }
 
 main()
-  .catch(() => {
+  .catch((error: unknown) => {
     // Prisma/upstream error details may contain connection strings or personal data.
     console.error(
       "MAX worker stopped. Check configuration, database and delivery states; secrets are not printed.",
     );
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      console.error(`MAX database error code: ${error.code}`);
+    }
     process.exitCode = 1;
   })
   .finally(() => prisma.$disconnect());

@@ -76,6 +76,46 @@ test("refuses insecure configuration and header injection", async () => {
   );
 });
 
+test("finds exact content with the scoped service credential", async () => {
+  const hash = "a".repeat(64);
+  const fetcher: typeof fetch = async (url, init) => {
+    assert.equal(url, `https://vedomo.example/api/integrations/prodigy/documents/by-hash/${hash}`);
+    assert.equal(init?.method, "GET");
+    assert.equal(init?.redirect, "error");
+    assert.equal(init?.cache, "no-store");
+    assert.equal((init?.headers as Record<string, string>)["X-Prodigy-Organization-ID"], "org-1");
+    assert.equal((init?.headers as Record<string, string>)["X-Prodigy-Course-ID"], "course-1");
+    assert.equal((init?.headers as Record<string, string>).Authorization, `Bearer ${token}`);
+    return Response.json({ document_id: "source-1", document_hash: hash, title: "policy.md" });
+  };
+  assert.deepEqual(await createVedomoClient("https://vedomo.example", token, fetcher)
+    .findDocument("org-1", "course-1", hash), { documentId: "source-1", documentHash: hash, title: "policy.md" });
+});
+
+test("missing content is distinct from unavailable or ambiguous service", async () => {
+  const hash = "a".repeat(64);
+  const missing: typeof fetch = async () => new Response(null, { status: 404 });
+  assert.equal(await createVedomoClient("https://vedomo.example", token, missing)
+    .findDocument("org-1", "course-1", hash), null);
+  for (const status of [401, 409, 503]) {
+    const failed: typeof fetch = async () => new Response(`secret=${token}`, { status });
+    await assert.rejects(() => createVedomoClient("https://vedomo.example", token, failed)
+      .findDocument("org-1", "course-1", hash),
+    (error: unknown) => error instanceof VedomoClientError && error.status === status && !error.message.includes(token));
+  }
+});
+
+test("hash lookup rejects invalid request and mismatched response", async () => {
+  const hash = "a".repeat(64);
+  const fetcher: typeof fetch = async () => Response.json({
+    document_id: "source-1", document_hash: "b".repeat(64), title: "policy.md",
+  });
+  const client = createVedomoClient("https://vedomo.example", token, fetcher);
+  await assert.rejects(() => client.findDocument("org-1", "course-1", "bad"), VedomoClientError);
+  await assert.rejects(() => client.findDocument("org-1", "course-1", hash),
+    (error: unknown) => error instanceof VedomoClientError && error.code === "response");
+});
+
 test("does not expose an answer without a valid source", async () => {
   const fetcher: typeof fetch = async () => Response.json({ answer: "Выдуманный ответ", refused: false, sources: [] });
   await assert.rejects(() => createVedomoClient("https://vedomo.example", token, fetcher).ask("org-1", "course-1", "Вопрос?"),

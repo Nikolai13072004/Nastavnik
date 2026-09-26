@@ -49,7 +49,7 @@ export function LinkEmployee({ onLinked }: { onLinked: () => void }) {
         required maxLength={32} minLength={32} pattern="[a-zA-Z0-9_\-]{32}" autoComplete="off"
         autoCapitalize="none" spellCheck={false} disabled={busy} aria-describedby="employee-code-hint"
         placeholder="Вставьте 32-значный код" iconBefore={<Link2 size={20} />} />
-      <p id="employee-code-hint">Не вводите код, который прислал другой человек.</p>
+      <p id="employee-code-hint">Введите личный код, выданный вам HR или руководителем. Не используйте код другого сотрудника и не передавайте свой.</p>
       {error && <p role="alert">{error}</p>}
       <Button type="submit" stretched size="medium" loading={busy} disabled={busy || token.length !== 32}>
         Связать профиль

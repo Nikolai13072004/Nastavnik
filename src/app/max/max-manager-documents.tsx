@@ -13,6 +13,7 @@ type DocumentRow = {
   supersedesId: string | null;
   versionNumber: number;
   changeSummary: string | null;
+  aiConnected: boolean;
   trainingRecipients: Array<{
     userId: string;
     viewedAt: string | null;
@@ -25,6 +26,7 @@ type DocumentRow = {
 type Preview = {
   id: string;
   title: string;
+  sourceName: string;
   contentText: string;
   changeSummary: string | null;
   checkQuestion: string | null;
@@ -60,6 +62,8 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
   const [confirmation, setConfirmation] = useState<{ id: string; publish: boolean } | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [aiConnectionEnabled, setAiConnectionEnabled] = useState(false);
+  const [connectingId, setConnectingId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -74,10 +78,11 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
           signal: controller.signal,
         });
         if (!response.ok) throw new Error("Could not load documents");
-        const result: { documents: DocumentRow[]; audience: Recipient[] | null } = await response.json();
+        const result: { documents: DocumentRow[]; audience: Recipient[] | null; aiConnectionEnabled: boolean } = await response.json();
         if (active) {
           setDocuments(result.documents);
           setAudience(result.audience);
+          setAiConnectionEnabled(result.aiConnectionEnabled);
         }
       } catch {
         if (active) setMessage("Не удалось загрузить документы. Обновите список позже.");
@@ -208,11 +213,59 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
     }
   }
 
+  async function connectSource(documentId: string) {
+    if (busy) return;
+    setBusy(true);
+    setConnectingId(documentId);
+    setMessage("");
+    try {
+      const response = await fetch("/api/max/documents/knowledge", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ courseId, documentId }),
+        cache: "no-store",
+      });
+      if (response.status === 401) { onRenew(); return; }
+      const result: { status?: string } = await response.json().catch(() => ({}));
+      if (response.ok && result.status === "APPROVED") {
+        setMessage("Источник проверен и подключён к AI.");
+      } else if (result.status === "SOURCE_NOT_READY") {
+        setMessage("В Vedomo пока нет готового источника с таким текстом. В «Проверить текст» скачайте текст для AI и передайте администратору для загрузки в Vedomo. После обработки повторите подключение.");
+      } else if (result.status === "UNSUPPORTED_FORMAT") {
+        setMessage("Для AI пока подходят .txt и .md. PDF можно читать в курсе, но подключить его этой кнопкой нельзя.");
+      } else if (response.status === 409) {
+        setMessage("Документ или его подключение изменились. Обновите список. Если в Vedomo есть копии одного текста, администратор должен проверить источник.");
+      } else {
+        setMessage("Не удалось подключить источник. Проверьте доступ и повторите позже.");
+      }
+      setRefreshKey((value) => value + 1);
+    } catch {
+      setMessage("Нет ответа от сервера. Обновите список, чтобы проверить результат подключения.");
+    } finally {
+      setBusy(false);
+      setConnectingId(null);
+    }
+  }
+
+  function downloadPreparedText() {
+    if (!preview || !/\.(txt|md)$/i.test(preview.sourceName)) return;
+    const extension = /\.md$/i.test(preview.sourceName) ? "md" : "txt";
+    const url = URL.createObjectURL(new Blob([preview.contentText], { type: "text/plain;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `max-source-${preview.id}.${extension}`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   return <section className={styles.workDocuments} aria-labelledby="max-manager-documents-title">
     <h3 id="max-manager-documents-title">Рабочие документы курса</h3>
     <p>Загрузите документ, проверьте текст и опубликуйте. Для новой редакции укажите, что изменилось, и подготовьте один вопрос. Черновики сотрудникам не видны. Не загружайте конфиденциальные документы на пилотный стенд.</p>
-    <p>Публикация открывает документ для чтения. Чтобы AI отвечал по новому файлу,
-      администратор должен отдельно подключить его к Vedomo и проверить источники.</p>
+    <p>Публикация открывает документ для чтения. {aiConnectionEnabled
+      ? "В «Проверить текст» скачайте текст для AI и передайте администратору для загрузки в Vedomo. После обработки нажмите «Подключить к AI»."
+      : "AI для этого курса пока не настроен."}</p>
     <form onSubmit={(event) => void upload(event)}>
       <label className={styles.reportSelect}>Это новая редакция?
         <select value={supersedesId} onChange={(event) => {
@@ -274,7 +327,15 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
         {!document.revokedAt && !document.approvedAt && document.supersedesId && <button type="button"
           className={styles.back} disabled={busy}
           onClick={() => setConfirmation({ id: document.id, publish: false })}>Удалить черновик</button>}
+        {aiConnectionEnabled && document.approvedAt && !document.revokedAt && /\.(txt|md)$/i.test(document.sourceName) && <button type="button"
+          className={styles.back} disabled={busy} onClick={() => void connectSource(document.id)}>
+          {connectingId === document.id ? "Проверяем источник…" : document.aiConnected ? "Проверить подключение" : "Подключить к AI"}
+        </button>}
       </div>
+      {aiConnectionEnabled && document.approvedAt && !document.revokedAt && <p>
+        {!/\.(txt|md)$/i.test(document.sourceName) ? "Для AI пока подходят только .txt и .md. PDF доступен для чтения."
+          : document.aiConnected ? "Подключение к AI сохранено." : "К AI не подключён."}
+      </p>}
       {document.trainingRecipients.length > 0 && <details className={styles.documentTrainingReport}>
         <summary>Повторное обучение: {document.trainingRecipients.filter((recipient) => recipient.passedAt).length}
           {" "}из {document.trainingRecipients.length} прошли</summary>
@@ -304,6 +365,10 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
       <h4>{preview.title}</h4>
       {preview.changeSummary && <p>Изменение: {preview.changeSummary}</p>}
       <MaxDocumentText text={preview.contentText} />
+      {aiConnectionEnabled && /\.(txt|md)$/i.test(preview.sourceName) && <>
+        <p>Этот файл содержит проверяемый текст без изменений кодировки и переносов строк. Загрузите именно его в Vedomo.</p>
+        <button type="button" className={styles.back} onClick={downloadPreparedText}>Скачать текст для AI</button>
+      </>}
       <details>
         <summary>Исходный текст файла</summary>
         <pre>{preview.contentText}</pre>

@@ -9,6 +9,6 @@ export const metadata: Metadata = {
 
 export default async function MaxPage() {
   await connection();
-  return <MaxLaunch showLmsLinks={process.env.MAX_LMS_LINKS !== "disabled"}
+  return <MaxLaunch showLmsLinks={process.env.MAX_LMS_LINKS === "enabled"}
     knowledgeCourseId={process.env.MAX_VEDOMO_ENABLED === "true" ? process.env.MAX_VEDOMO_COURSE_ID : undefined} />;
 }

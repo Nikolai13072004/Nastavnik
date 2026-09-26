@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { setTimeout as delay } from "node:timers/promises";
 import { PrismaClient } from "@prisma/client";
 import { createMaxSessionCodec } from "../src/modules/max/infrastructure/learner-session";
 import {
@@ -77,6 +78,8 @@ async function main() {
       body?: object,
       expectedStatus = 200,
     ) {
+      // Respect the gateway's 5 requests/second limit; do not retry mutating requests.
+      await delay(220);
       const headers: Record<string, string> = {};
       if (token) headers.Authorization = `Bearer ${token}`;
       if (body) headers["Content-Type"] = "application/json";

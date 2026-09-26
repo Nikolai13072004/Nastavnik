@@ -177,13 +177,7 @@ export function createChatFlow(deps: {
     const currentQuiz =
       state.quiz?.courseId === courseId ? state.quiz : undefined;
     try {
-      if (
-        currentQuiz &&
-        (action === "resume" ||
-          (action === "tests" &&
-            Object.keys(currentQuiz.answers).length ===
-              currentQuiz.questions.length))
-      ) {
+      if (currentQuiz && action === "resume") {
         const course = await deps.learning.course(identity, courseId);
         if (
           course.quizzes.some(
@@ -222,6 +216,14 @@ export function createChatFlow(deps: {
       if (action === "leave") {
         state.quizPaused = true;
         action = "tests";
+      }
+      if (action === "panel") {
+        state.quizPaused = true;
+        await save();
+        return {
+          text: `${courses.find((course) => course.id === courseId)!.title}\n\nВыберите действие для этого курса.`,
+          buttons: actions(),
+        };
       }
       if (action === "answer") {
         if (!currentQuiz || state.quizPaused)
@@ -311,15 +313,12 @@ export function createChatFlow(deps: {
             ...quizzes
               .slice(start, start + 5)
               .map((quiz, position) => [
-                chatButton(
-                  state,
-                  quiz.title.slice(0, 80),
-                  "confirm",
-                  start + position,
-                ),
+                currentQuiz?.id === quiz.id
+                  ? chatButton(state, `Продолжить: ${quiz.title.slice(0, 65)}`, "resume")
+                  : chatButton(state, quiz.title.slice(0, 80), "confirm", start + position),
               ]),
             ...(navigation.length ? [navigation] : []),
-            ...actions(),
+            [chatButton(state, "Назад", "panel")],
           ],
         };
       }
@@ -335,7 +334,7 @@ export function createChatFlow(deps: {
           text: `${quiz.title.slice(0, 180)}\nВопросов: ${quiz.questionCount}. Попыток использовано: ${quiz.attemptsUsed} из ${quiz.maxAttempts}.\n\nНовая попытка учитывается сразу после начала. Незавершённая попытка будет продолжена, а не создана заново.${state.quiz && state.quiz.id !== quiz.id ? " Черновик ответов другого теста в чате будет заменён." : ""}`,
           buttons: [
             [chatButton(state, "Начать или продолжить", "start", index)],
-            [chatButton(state, "К списку тестов", "tests")],
+            [chatButton(state, "Назад", "tests")],
           ],
         };
       }

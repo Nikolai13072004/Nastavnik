@@ -1,0 +1,7 @@
+services:
+  web:
+    image: prodigy-max:knowledge-ui-v3-20260926
+  worker:
+    image: prodigy-max:knowledge-ui-v3-20260926
+  migrate:
+    image: prodigy-max:knowledge-ui-v3-20260926

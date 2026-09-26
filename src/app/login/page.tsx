@@ -46,6 +46,14 @@ export default async function LoginPage({ searchParams }: Props) {
       <h1 className="mt-2 text-center text-2xl font-semibold">Вход в систему</h1>
       <p className="mt-3 text-center text-sm text-[var(--ink-muted)]">{settings.siteDescription}</p>
 
+      {callbackUrl === "/connect-max" && (
+        <p className="mt-4 text-center text-sm text-[var(--ink-muted)]">
+          Войдите в свою учётную запись LMS, чтобы получить код привязки MAX.
+          После входа откроется страница «Подключить свой MAX».
+          Если у вас нет логина и пароля, обратитесь к HR.
+        </p>
+      )}
+
       {settings.maintenanceMode ? (
         <div className="mt-6 rounded-2xl border border-[var(--warning)] bg-[var(--warning-soft)] px-4 py-3 text-sm text-[var(--warning)]">
           <p className="font-medium">Режим обслуживания включен. Вход доступен только администраторам.</p>
