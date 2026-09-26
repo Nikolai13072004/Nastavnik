@@ -34,6 +34,9 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, onRenew }:
   const [detail, setDetail] = useState<CourseDetail | null>(null);
   const [detailMessage, setDetailMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshMessage, setRefreshMessage] = useState("");
+  const [confirmMaterialId, setConfirmMaterialId] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -54,7 +57,10 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, onRenew }:
           return;
         }
         const result = await response.json();
-        if (active) setState({ kind: "ready", courses: result.courses });
+        if (active) {
+          setState({ kind: "ready", courses: result.courses });
+          if (refreshKey > 0) setRefreshMessage("Список курсов обновлён.");
+        }
       } catch {
         if (active) setState({ kind: "error", message: "Не удалось загрузить курсы. Проверьте соединение." });
       } finally {
@@ -67,7 +73,7 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, onRenew }:
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [token]);
+  }, [token, refreshKey]);
 
   async function openCourse(courseId: string) {
     setBusy(true);
@@ -80,6 +86,7 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, onRenew }:
       if (!response.ok) throw new Error();
       const result: { course: CourseDetail } = await response.json();
       setDetail(result.course);
+      setConfirmMaterialId(null);
     } catch {
       setDetailMessage("Не удалось открыть курс. Проверьте соединение и попробуйте снова.");
     } finally {
@@ -98,6 +105,7 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, onRenew }:
         body: JSON.stringify({ courseId: detail.id, materialId }),
       });
       if (!response.ok) throw new Error();
+      setConfirmMaterialId(null);
       setDetail((current) => current && {
         ...current,
         materials: current.materials.map((material) => material.id === materialId
@@ -132,7 +140,11 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, onRenew }:
       {state.kind === "loading" && <p role="status">Загружаем назначения…</p>}
       {state.kind === "error" && <p role="alert">{state.message}</p>}
       {detail ? <div className={styles.courseDetail}>
-        <button type="button" className={styles.back} onClick={() => { setDetail(null); setDetailMessage(""); }}>← К моим курсам</button>
+        <button type="button" className={styles.back} disabled={busy} onClick={() => {
+          setDetail(null);
+          setDetailMessage("");
+          setConfirmMaterialId(null);
+        }}>К моим курсам</button>
         <h3>{detail.title}</h3>
         {detail.completed && <p className={styles.courseCompletion} role="status">
           Курс завершён. Результат сохранён в Prodigy.
@@ -141,15 +153,20 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, onRenew }:
         {detail.materials.map((material) => <article key={material.id} className={styles.material}>
           <h4>{material.title}</h4>
           {material.content && <div className={styles.materialContent} dangerouslySetInnerHTML={{ __html: material.content }} />}
-          <button type="button" className={styles.retry} disabled={busy || material.completed}
-            onClick={() => void completeMaterial(material.id)}>
-            {material.completed ? "Изучено ✓" : "Отметить как изученное"}
-          </button>
+          {material.completed ? <p className={styles.materialStatus}>Изучено. Материал можно перечитать в любое время.</p>
+            : confirmMaterialId === material.id ? <div className={styles.documentConfirm} aria-live="polite">
+              <p>Вы прочитали материал? Подтверждение сохранит отметку о прохождении.</p>
+              <button type="button" className={styles.retry} disabled={busy}
+                onClick={() => void completeMaterial(material.id)}>{busy ? "Сохраняем..." : "Да, материал изучен"}</button>
+              <button type="button" className={styles.back} disabled={busy}
+                onClick={() => setConfirmMaterialId(null)}>Продолжить чтение</button>
+            </div> : <button type="button" className={styles.retry} disabled={busy}
+              onClick={() => setConfirmMaterialId(material.id)}>Отметить как изученное</button>}
         </article>)}
-        <MaxCourseDocuments key={detail.id} courseId={detail.id} token={token} onRenew={onRenew} />
+        <MaxCourseDocuments key={`documents:${detail.id}`} courseId={detail.id} token={token} onRenew={onRenew} />
         {knowledgeCourseId === detail.id
-          ? <MaxCourseKnowledge key={detail.id} courseId={detail.id} token={token} onRenew={onRenew} />
-          : <MaxCourseSearch key={detail.id} courseId={detail.id} token={token} onRenew={onRenew} />}
+          ? <MaxCourseKnowledge key={`knowledge:${detail.id}`} courseId={detail.id} token={token} onRenew={onRenew} />
+          : <MaxCourseSearch key={`search:${detail.id}`} courseId={detail.id} token={token} onRenew={onRenew} />}
         {detail.quizzes.map((quiz) => <MaxQuiz key={quiz.id} token={token} courseId={detail.id} quiz={quiz}
           onResult={(result) => {
             setDetail((current) => current && {
@@ -172,9 +189,15 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, onRenew }:
           <button type="button" className={styles.retry} disabled={busy} onClick={() => void openCourse(course.id)}>Открыть курс</button>
         </li>)}</ul>)}
       {detailMessage && <p role="alert">{detailMessage}</p>}
-      <button type="button" className={styles.retry} onClick={onRenew}>
-        {state.kind === "error" ? "Проверить вход снова" : "Обновить назначения"}
-      </button>
+      {!detail && <>
+        <button type="button" className={styles.back} disabled={state.kind === "loading" || busy} onClick={() => {
+          if (state.kind === "error") { onRenew(); return; }
+          setRefreshMessage("");
+          setState({ kind: "loading" });
+          setRefreshKey((current) => current + 1);
+        }}>{state.kind === "loading" ? "Загружаем курсы..." : state.kind === "error" ? "Повторить вход" : "Проверить новые курсы"}</button>
+        {refreshMessage && <p role="status">{refreshMessage}</p>}
+      </>}
       {managerAccess && <MaxManagerReport token={token} onRenew={onRenew} />}
     </section>
   );

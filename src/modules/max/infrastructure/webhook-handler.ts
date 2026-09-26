@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import { parseBotStart, type BotDeliveryRepository } from "../application/bot-delivery";
+import { parseBotEvent, type BotDeliveryRepository } from "../application/bot-delivery";
 
 type WebhookConfig = { secret?: string; botUsername?: string };
 
@@ -52,7 +52,7 @@ export async function handleMaxWebhook(
     return json(415, "JSON_REQUIRED");
   }
   try {
-    const event = parseBotStart(await readEvent(request), now);
+    const event = parseBotEvent(await readEvent(request), now);
     if (event === null) return json(400, "INVALID_EVENT");
     if (event !== "ignored") await repository.enqueue(botUsername, event);
     // Acknowledge only after durable persistence; no external send within the HTTP request.

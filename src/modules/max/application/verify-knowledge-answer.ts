@@ -6,11 +6,12 @@ export type KnowledgeSource = {
   pageStart: number | null;
   pageEnd: number | null;
   snippet: string;
+  courseDocumentId?: string;
 };
 
 export type KnowledgeAnswer = { answer: string; refused: boolean; sources: KnowledgeSource[] };
 
-export type AuthorizedDocument = { id: string; contentHash: string; contentText: string };
+export type AuthorizedDocument = { id: string; contentHash: string; contentText: string; courseDocumentId?: string };
 
 function normalizePassage(text: string): string {
   return text
@@ -44,5 +45,15 @@ export function verifyKnowledgeAnswer(answer: KnowledgeAnswer, allowedDocuments:
   })) {
     return refusal;
   }
-  return answer;
+  return {
+    ...answer,
+    sources: answer.sources.map((source) => {
+      const verifiedSource = { ...source };
+      // The local document ID comes from authorization, never from the model.
+      delete verifiedSource.courseDocumentId;
+      const document = allowed.get(source.documentId)!;
+      if (document.courseDocumentId) verifiedSource.courseDocumentId = document.courseDocumentId;
+      return verifiedSource;
+    }),
+  };
 }

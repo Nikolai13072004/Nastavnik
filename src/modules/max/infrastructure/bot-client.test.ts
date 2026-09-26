@@ -44,6 +44,18 @@ test("revision notice opens the app without exposing document text", async () =>
   assert.equal(await client.sendRevision(456, "example_bot"), "revision-mid");
 });
 
+test("generic help replies privately with honest capabilities and no user-supplied text", async () => {
+  const client = createMaxBotClient("test-secret", async (url, init) => {
+    assert.equal(url, "https://platform-api2.max.ru/messages?user_id=456");
+    const body = JSON.parse(String(init?.body));
+    assert.match(body.text, /Вопросы и тесты прямо в чате добавим отдельно/);
+    assert.match(body.text, /Не отправляйте в чат коды/);
+    assert.equal(body.attachments[0].payload.buttons[0][0].type, "open_app");
+    return Response.json({ message: { body: { mid: "help-mid" } } });
+  });
+  assert.equal(await client.sendHelp(456, "example_bot"), "help-mid");
+});
+
 test("HTTP failures, rate limits and transport failures do not retry or leak secrets", async () => {
   for (const status of [401, 429, 500]) {
     let calls = 0;

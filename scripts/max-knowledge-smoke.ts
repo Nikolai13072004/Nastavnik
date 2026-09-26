@@ -42,6 +42,23 @@ async function main() {
     source.documentId === expectedDocumentId));
   console.log("approved course: verified answer and source");
 
+  const source = answer.sources.find((item: { documentId: string }) =>
+    item.documentId === expectedDocumentId);
+  assert.ok(source.courseDocumentId, "Source must point to an authorized local document");
+  const documentEndpoint = new URL("/api/max/documents", endpoint);
+  documentEndpoint.searchParams.set("courseId", "max-pilot-demo-course");
+  documentEndpoint.searchParams.set("documentId", source.courseDocumentId);
+  const documentResponse = await fetch(documentEndpoint, { headers, signal: AbortSignal.timeout(15_000) });
+  assert.equal(documentResponse.status, 200);
+  const document = (await documentResponse.json()).document;
+  assert.equal(document.id, source.courseDocumentId);
+  assert.ok(document.contentText.length > 0);
+  console.log("source document: exact file accessible");
+
+  const anonymousDocument = await fetch(documentEndpoint, { signal: AbortSignal.timeout(15_000) });
+  assert.equal(anonymousDocument.status, 401);
+  console.log("anonymous source request: denied");
+
   const foreign = await fetch(endpoint, {
     method: "POST",
     headers,

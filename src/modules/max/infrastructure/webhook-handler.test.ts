@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { handleMaxWebhook } from "./webhook-handler";
-import { parseBotStart, deliverNextBotMessage, type BotDeliveryRepository, type DeliveryOutcome } from "../application/bot-delivery";
+import { parseBotStart, parseBotEvent, deliverNextBotMessage, type BotDeliveryRepository, type DeliveryOutcome } from "../application/bot-delivery";
 
 const now = 1_790_000_000_000;
 const config = { secret: "a".repeat(43), botUsername: "example_bot" };
@@ -82,4 +82,61 @@ test("worker records success, uncertainty without retry, and propagates DB failu
   assert.deepEqual(outcomes, [{ status: "SENT", messageId: "mid" }, { status: "UNCERTAIN", errorCode: "SEND_NOT_CONFIRMED" }]);
   assert.equal(await deliverNextBotMessage({ ...repo, claim: async () => null }, "example_bot", async () => assert.fail()), "idle");
   await assert.rejects(deliverNextBotMessage({ ...repo, finish: async () => { throw new Error("db-unavailable"); } }, "example_bot", async () => "mid"));
+});
+
+const textEvent = {
+  update_type: "message_created", timestamp: now,
+  message: {
+    sender: { user_id: 123, is_bot: false, name: "private-name" },
+    recipient: { chat_type: "dialog", chat_id: 55 },
+    body: { mid: "message-id", text: "private-code" },
+  },
+};
+
+test("private text queues generic help without retaining text, codes or sender names", async () => {
+  assert.deepEqual(parseBotEvent(textEvent, now), { kind: "HELP", userId: 123, timestamp: now });
+  const response = await handleMaxWebhook(request(textEvent), config, {
+    enqueue: async (_bot, received) => {
+      assert.deepEqual(received, { kind: "HELP", userId: 123, timestamp: now });
+      assert.ok(!JSON.stringify(received).includes("private-"));
+    },
+  }, now);
+  assert.equal(response.status, 200);
+});
+
+test("help ignores groups, channels, bot messages, attachments and stale or unsafe events", () => {
+  for (const message of [
+    { ...textEvent.message, sender: { user_id: 123, is_bot: true } },
+    { ...textEvent.message, sender: { user_id: 2 ** 53, is_bot: false } },
+    { ...textEvent.message, sender: { user_id: 123 } },
+    { ...textEvent.message, recipient: { chat_type: "chat" } },
+    { ...textEvent.message, recipient: { chat_type: "channel" } },
+    { ...textEvent.message, body: { attachments: [] } },
+    { ...textEvent.message, body: { text: " " } },
+  ]) assert.equal(parseBotEvent({ ...textEvent, message }, now), "ignored");
+  for (const timestamp of [now - 86_400_001, now + 60_001, 2 ** 53, "123"]) {
+    assert.equal(parseBotEvent({ ...textEvent, timestamp }, now), "ignored");
+  }
+});
+
+test("help delivery uses its own sender and remains uncertain without automatic retry", async () => {
+  const outcomes: DeliveryOutcome[] = [];
+  const repo: BotDeliveryRepository = {
+    enqueue: async () => undefined,
+    claim: async () => ({ eventKey: "help", maxUserId: "123", kind: "HELP" }),
+    finish: async (_key, outcome) => { outcomes.push(outcome); },
+  };
+  const forbidden = async () => assert.fail("must not send welcome or revision");
+  assert.equal(await deliverNextBotMessage(repo, "example_bot", forbidden, forbidden, async (id, bot) => {
+    assert.equal(id, 123);
+    assert.equal(bot, "example_bot");
+    return "help-mid";
+  }), "sent");
+  assert.equal(await deliverNextBotMessage(repo, "example_bot", forbidden, forbidden, async () => {
+    throw new Error("private upstream body");
+  }), "uncertain");
+  assert.deepEqual(outcomes, [
+    { status: "SENT", messageId: "help-mid" },
+    { status: "UNCERTAIN", errorCode: "SEND_NOT_CONFIRMED" },
+  ]);
 });

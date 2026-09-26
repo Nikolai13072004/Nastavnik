@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "./max.module.css";
 
-type Source = { documentId: string; title: string; snippet: string };
+type Source = { documentId: string; courseDocumentId?: string; title: string; snippet: string };
 type Answer = { answer: string; refused: boolean; sources: Source[] };
+type SourceDocument = { id: string; title: string; versionNumber: number; contentText: string };
 
 export function MaxCourseKnowledge({ courseId, token, onRenew }: {
   courseId: string;
@@ -15,6 +16,61 @@ export function MaxCourseKnowledge({ courseId, token, onRenew }: {
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sourceDocument, setSourceDocument] = useState<SourceDocument | null>(null);
+  const [sourceMessage, setSourceMessage] = useState("");
+  const [sourceBusy, setSourceBusy] = useState(false);
+  const sourceRequest = useRef<AbortController | null>(null);
+  const preview = useRef<HTMLDivElement | null>(null);
+  const sourceButton = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => () => sourceRequest.current?.abort(), []);
+
+  useEffect(() => {
+    if (sourceDocument) preview.current?.focus();
+  }, [sourceDocument]);
+
+  async function openSource(documentId: string) {
+    sourceRequest.current?.abort();
+    const controller = new AbortController();
+    sourceRequest.current = controller;
+    const timeout = window.setTimeout(() => controller.abort(), 15_000);
+    setSourceBusy(true);
+    setSourceDocument(null);
+    setSourceMessage("");
+    try {
+      const query = new URLSearchParams({ courseId, documentId });
+      const response = await fetch(`/api/max/documents?${query}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+        cache: "no-store",
+      });
+      if (sourceRequest.current !== controller) return;
+      if (response.status === 401) { onRenew(); return; }
+      if (!response.ok) throw new Error("Source is unavailable");
+      const result: { document: SourceDocument } = await response.json();
+      if (sourceRequest.current === controller) setSourceDocument(result.document);
+    } catch {
+      if (sourceRequest.current === controller) {
+        setSourceMessage("Не удалось открыть источник. Возможно, доступ или редакция документа изменились. Попробуйте снова.");
+      }
+    } finally {
+      window.clearTimeout(timeout);
+      if (sourceRequest.current === controller) setSourceBusy(false);
+    }
+  }
+
+  function downloadSource() {
+    if (!sourceDocument) return;
+    const blob = new Blob([sourceDocument.contentText], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `document-${sourceDocument.id}-v${sourceDocument.versionNumber}.txt`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
 
   async function ask(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -22,6 +78,11 @@ export function MaxCourseKnowledge({ courseId, token, onRenew }: {
     setBusy(true);
     setAnswer(null);
     setMessage("");
+    sourceRequest.current?.abort();
+    sourceRequest.current = null;
+    setSourceDocument(null);
+    setSourceMessage("");
+    setSourceBusy(false);
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 115_000);
     try {
@@ -67,8 +128,30 @@ export function MaxCourseKnowledge({ courseId, token, onRenew }: {
       <p>{answer.answer}</p>
       {!answer.refused && answer.sources.slice(0, 3).map((source, index) =>
         <small key={`${source.documentId}-${index}`}>
-          Источник: {source.title}. {source.snippet.slice(0, 400)}
+          {source.courseDocumentId ? <button type="button" className={styles.sourceLink}
+            disabled={sourceBusy} onClick={(event) => {
+              sourceButton.current = event.currentTarget;
+              void openSource(source.courseDocumentId!);
+            }}>
+            Источник: {source.title}
+          </button> : <span>Источник: {source.title}</span>}
+          <span>{source.snippet.slice(0, 400)}</span>
         </small>)}
+    </div>}
+    {sourceBusy && <p role="status">Открываем источник...</p>}
+    {sourceMessage && <p role="status">{sourceMessage}</p>}
+    {sourceDocument && <div ref={preview} tabIndex={-1} className={styles.documentPreview}
+      role="region" aria-label={`Источник: ${sourceDocument.title}`}>
+      <h5>{sourceDocument.title}</h5>
+      <p>Редакция {sourceDocument.versionNumber}</p>
+      <pre>{sourceDocument.contentText}</pre>
+      <div className={styles.documentActions}>
+        <button type="button" className={styles.back} onClick={downloadSource}>Скачать текст (.txt)</button>
+        <button type="button" className={styles.back} onClick={() => {
+          setSourceDocument(null);
+          sourceButton.current?.focus();
+        }}>Закрыть источник</button>
+      </div>
     </div>}
     {message && <p role="status">{message}</p>}
   </section>;

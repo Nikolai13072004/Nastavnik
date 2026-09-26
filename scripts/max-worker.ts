@@ -20,7 +20,7 @@ async function main() {
   process.once("SIGTERM", () => { stopping = true; });
   do {
     const result = await deliverNextBotMessage(
-      prismaBotDeliveryRepository, username, client.sendWelcome, client.sendRevision,
+      prismaBotDeliveryRepository, username, client.sendWelcome, client.sendRevision, client.sendHelp,
     );
     console.log(`MAX delivery: ${result}`);
     if (result === "uncertain") throw new Error("Delivery requires operator review");

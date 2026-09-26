@@ -62,6 +62,24 @@ export function createMaxBotClient(token: string, fetcher: typeof fetch = fetch)
     }
   }
 
+  async function sendWithApp(userId: number, botUsername: string, text: string): Promise<string> {
+    if (!Number.isSafeInteger(userId) || userId <= 0 || !/^[a-zA-Z0-9_]+$/.test(botUsername)) {
+      throw new MaxBotApiError("configuration");
+    }
+    const data = await request(`/messages?user_id=${userId}`, {
+      text,
+      attachments: [{
+        type: "inline_keyboard",
+        payload: { buttons: [[{ type: "open_app", text: "Открыть обучение", web_app: botUsername }]] },
+      }],
+    });
+    if (!isObject(data) || !isObject(data.message) || !isObject(data.message.body)
+      || typeof data.message.body.mid !== "string" || !data.message.body.mid) {
+      throw new MaxBotApiError("response");
+    }
+    return data.message.body.mid;
+  }
+
   return {
     async getProfile(): Promise<MaxBotProfile> {
       const data = await request("/me");
@@ -76,39 +94,18 @@ export function createMaxBotClient(token: string, fetcher: typeof fetch = fetch)
     // Call only after authenticated event intake and durable deduplication are in place.
     // Do not automatically retry: a timed-out POST may already have delivered the message.
     async sendWelcome(userId: number, botUsername: string): Promise<string> {
-      if (!Number.isSafeInteger(userId) || userId <= 0 || !/^[a-zA-Z0-9_]+$/.test(botUsername)) {
-        throw new MaxBotApiError("configuration");
-      }
-      const data = await request(`/messages?user_id=${userId}`, {
-        text: "Добро пожаловать в Prodigy! Откройте приложение, чтобы связать учётную запись сотрудника и увидеть назначенные курсы. Код привязки вводите только внутри приложения, не отправляйте его в чат.",
-        attachments: [{
-          type: "inline_keyboard",
-          payload: { buttons: [[{ type: "open_app", text: "Открыть обучение", web_app: botUsername }]] },
-        }],
-      });
-      if (!isObject(data) || !isObject(data.message) || !isObject(data.message.body)
-        || typeof data.message.body.mid !== "string" || !data.message.body.mid) {
-        throw new MaxBotApiError("response");
-      }
-      return data.message.body.mid;
+      return sendWithApp(userId, botUsername,
+        "Добро пожаловать в Prodigy! Откройте приложение, чтобы связать учётную запись сотрудника и увидеть назначенные курсы. Код привязки вводите только внутри приложения, не отправляйте его в чат.");
     },
 
     async sendRevision(userId: number, botUsername: string): Promise<string> {
-      if (!Number.isSafeInteger(userId) || userId <= 0 || !/^[a-zA-Z0-9_]+$/.test(botUsername)) {
-        throw new MaxBotApiError("configuration");
-      }
-      const data = await request(`/messages?user_id=${userId}`, {
-        text: "В назначенном курсе обновился рабочий документ. Откройте обучение, прочитайте новую редакцию и пройдите короткую проверку.",
-        attachments: [{
-          type: "inline_keyboard",
-          payload: { buttons: [[{ type: "open_app", text: "Открыть обучение", web_app: botUsername }]] },
-        }],
-      });
-      if (!isObject(data) || !isObject(data.message) || !isObject(data.message.body)
-        || typeof data.message.body.mid !== "string" || !data.message.body.mid) {
-        throw new MaxBotApiError("response");
-      }
-      return data.message.body.mid;
+      return sendWithApp(userId, botUsername,
+        "В назначенном курсе обновился рабочий документ. Откройте обучение, прочитайте новую редакцию и пройдите короткую проверку.");
+    },
+
+    async sendHelp(userId: number, botUsername: string): Promise<string> {
+      return sendWithApp(userId, botUsername,
+        "Курсы, материалы, вопросы AI и тесты сейчас доступны в приложении по кнопке ниже. Выберите назначенный курс. Если профиль ещё не связан, получите код у HR и введите его внутри приложения. Не отправляйте в чат коды, личные данные или рабочие документы. Вопросы и тесты прямо в чате добавим отдельно.");
     },
   };
 }

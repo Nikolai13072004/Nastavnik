@@ -43,3 +43,28 @@ test("matches a full passage with its section label and PDF line wrapping", () =
   };
   assert.deepEqual(verifyKnowledgeAnswer(cited, [approved]), cited);
 });
+
+test("source links use the exact local mapping, not a document ID supplied by the model", () => {
+  const forged = {
+    ...answer,
+    sources: [{ ...answer.sources[0], courseDocumentId: "foreign-document" }],
+  };
+  const approved = {
+    id: "doc-1", contentHash: "version-2", contentText: "Подтверждает ответственный сотрудник.",
+    courseDocumentId: "local-approved-document",
+  };
+  const result = verifyKnowledgeAnswer(forged, [approved]);
+  assert.equal(result.sources[0].courseDocumentId, "local-approved-document");
+  assert.equal(verifyKnowledgeAnswer(forged, [{ ...approved, courseDocumentId: undefined }])
+    .sources[0].courseDocumentId, undefined);
+  assert.equal(forged.sources[0].courseDocumentId, "foreign-document");
+});
+
+test("multiple source links keep their own file mappings", () => {
+  const secondSource = { ...answer.sources[0], documentId: "doc-2", documentHash: "version-3" };
+  const result = verifyKnowledgeAnswer({ ...answer, sources: [answer.sources[0], secondSource] }, [
+    { id: "doc-1", contentHash: "version-2", contentText: answer.sources[0].snippet, courseDocumentId: "file-1" },
+    { id: "doc-2", contentHash: "version-3", contentText: secondSource.snippet, courseDocumentId: "file-2" },
+  ]);
+  assert.deepEqual(result.sources.map((source) => source.courseDocumentId), ["file-1", "file-2"]);
+});

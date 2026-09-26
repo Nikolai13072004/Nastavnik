@@ -61,7 +61,7 @@ export function MaxLaunch({ showLmsLinks = true, knowledgeCourseId }: {
       const data = await response.json();
       if (!response.ok) {
         setState({ kind: "error", message: data.error === "MAX_NOT_CONFIGURED"
-          ? "Подключение MAX ещё не настроено. Администратору нужно добавить токен бота на сервере."
+          ? "Обучение пока недоступно. Сообщите HR или руководителю."
           : response.status === 503 ? "Сервис временно недоступен. Попробуйте позже."
           : "Не удалось подтвердить вход. Закройте мини-приложение и снова откройте его из бота." });
         return;
@@ -82,7 +82,7 @@ export function MaxLaunch({ showLmsLinks = true, knowledgeCourseId }: {
     <main className={styles.page}>
       <Script src="https://st.max.ru/js/max-web-app.js" strategy="afterInteractive"
         onReady={() => void verify()}
-        onError={() => setState({ kind: "error", message: "Не удалось загрузить MAX Bridge. Проверьте соединение и откройте приложение повторно." })} />
+        onError={() => setState({ kind: "error", message: "Не удалось подключиться к MAX. Проверьте соединение и откройте приложение повторно." })} />
       <header className={styles.header}>
         <span className={styles.brand}>Prodigy <span>/ MAX</span></span>
         <span className={styles.preview}>Подключение</span>
@@ -90,7 +90,7 @@ export function MaxLaunch({ showLmsLinks = true, knowledgeCourseId }: {
       <section className={styles.content} aria-labelledby="launch-title">
         <p className={styles.eyebrow}>Обучение сотрудников</p>
         <h1 id="launch-title">Рабочие знания.<br />В привычном чате.</h1>
-        <p className={styles.intro}>Курсы и учебные материалы вашей компании — прямо в MAX.</p>
+        <p className={styles.intro}>Курсы и учебные материалы вашей компании прямо в MAX.</p>
         <div className={styles.status} role="status" aria-live="polite" aria-busy={state.kind === "loading"}>
           {state.kind === "loading" && <><h2>Проверяем вход…</h2><p>Подтверждаем данные запуска через MAX.</p></>}
           {state.kind === "outside" && <><h2>Откройте приложение из MAX</h2><p>В чате с ботом компании нажмите кнопку мини-приложения. Обычная ссылка в браузере не передаёт данные для входа.</p></>}
@@ -99,7 +99,7 @@ export function MaxLaunch({ showLmsLinks = true, knowledgeCourseId }: {
             {state.employee ? <p>{state.employee.name} · {state.employee.organizationName}</p>
               : <p>{showLmsLinks
                 ? "Для привязки получите код в своей учётной записи LMS и введите его ниже."
-                : "На тестовом стенде код привязки выдаёт администратор. Введите его ниже."}</p>}
+                : "Получите одноразовый код у HR или руководителя и введите его ниже."}</p>}
           </>}
           {state.kind === "error" && <><h2>Подключение не завершено</h2><p>{state.message}</p></>}
         </div>
@@ -109,12 +109,12 @@ export function MaxLaunch({ showLmsLinks = true, knowledgeCourseId }: {
         {state.kind === "verified" && state.employee && !state.session && <p>Не удалось открыть учебную сессию. Откройте приложение повторно.</p>}
         {state.kind === "error" && <button className={styles.retry} onClick={() => void verify()}>Повторить проверку</button>}
         {showLmsLinks ? <>
-          <Link className={styles.login} href="/connect-max">Получить код в LMS →</Link>
+          <Link className={styles.login} href="/connect-max">Получить код в LMS</Link>
           <br />
-          <Link className={styles.login} href="/login">Войти в веб-версию LMS →</Link>
-        </> : <p className={styles.footer}>Технический стенд. Веб-вход в LMS пока закрыт; демо-курс доступен после привязки профиля.</p>}
+          <Link className={styles.login} href="/login">Войти в веб-версию LMS</Link>
+        </> : null}
       </section>
-      <footer className={styles.footer}>Доступны привязка, курсы, текстовые материалы и простые тесты. Другие форматы добавим позже.</footer>
+      <footer className={styles.footer}>Вопросы о доступе к обучению можно задать HR или руководителю.</footer>
     </main>
   );
 }

@@ -93,3 +93,20 @@ test("authenticated HTTP receipt -> durable queue -> welcome -> duplicate acknow
   assert.equal((await handleMaxWebhook(request(), config, repository)).status, 200);
   assert.equal(await prisma.maxBotDelivery.count({ where: { botUsername: username } }), 1);
 });
+
+test("generic help deduplicates concurrent messages within a time window and routes separately", async () => {
+  const username = bot();
+  const timestamp = Math.floor(Date.now() / 30_000) * 30_000;
+  const help = { kind: "HELP", userId: 123, timestamp } as const;
+  await Promise.all(Array.from({ length: 8 }, (_, index) =>
+    repository.enqueue(username, { ...help, timestamp: timestamp + index })));
+  assert.equal(await prisma.maxBotDelivery.count({ where: { botUsername: username } }), 1);
+  const forbidden = async () => assert.fail("must not send welcome");
+  assert.equal(await deliverNextBotMessage(repository, username, forbidden, forbidden, async () => "help-mid"), "sent");
+  await repository.enqueue(username, help);
+  assert.equal(await prisma.maxBotDelivery.count({ where: { botUsername: username } }), 1);
+  await repository.enqueue(username, { ...help, timestamp: timestamp + 30_000 });
+  assert.equal(await prisma.maxBotDelivery.count({ where: { botUsername: username } }), 2);
+  const rows = await prisma.maxBotDelivery.findMany({ where: { botUsername: username } });
+  assert.ok(rows.every((row) => row.kind === "HELP" && row.documentId === null));
+});

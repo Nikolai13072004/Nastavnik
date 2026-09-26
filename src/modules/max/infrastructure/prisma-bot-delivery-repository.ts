@@ -5,13 +5,18 @@ import { resolveEnrollmentAccess } from "@/modules/enrollment/domain/enrollment-
 
 export const prismaBotDeliveryRepository: BotDeliveryRepository = {
   async enqueue(botUsername, event) {
+    const help = "kind" in event && event.kind === "HELP";
+    const identity = help
+      ? [botUsername, "help", event.userId, Math.floor(event.timestamp / 30_000)]
+      : [botUsername, "bot_started", event.userId, "chatId" in event ? event.chatId : null, event.timestamp];
     const eventKey = createHash("sha256")
-      .update(JSON.stringify([botUsername, "bot_started", event.userId, event.chatId, event.timestamp]))
+      .update(JSON.stringify(identity))
       .digest("hex");
     // Insert-on-conflict ignores exact redeliveries, including after a process restart.
     // Do not store names, message text or deep-link payload (it may contain a secret).
     await prisma.maxBotDelivery.createMany({
-      data: [{ eventKey, botUsername, maxUserId: String(event.userId) }],
+      // Generic help is limited to one reply per user in each 30-second window.
+      data: [{ eventKey, botUsername, maxUserId: String(event.userId), kind: help ? "HELP" : "WELCOME" }],
       skipDuplicates: true,
     });
   },
@@ -36,7 +41,7 @@ export const prismaBotDeliveryRepository: BotDeliveryRepository = {
         orderBy: [{ createdAt: "asc" }, { eventKey: "asc" }],
       });
       if (!job) return null;
-      if (job.kind !== "WELCOME" && job.kind !== "DOCUMENT_REVISION") {
+      if (job.kind !== "WELCOME" && job.kind !== "DOCUMENT_REVISION" && job.kind !== "HELP") {
         throw new Error("Unknown MAX delivery kind");
       }
       if (job.kind === "DOCUMENT_REVISION") {

@@ -1,0 +1,5 @@
+services:
+  web:
+    image: prodigy-max:ux-20260926
+  worker:
+    image: prodigy-max:ux-20260926

@@ -29,9 +29,12 @@ export function MaxCourseDocuments({ courseId, token, onRenew }: {
   const [refreshKey, setRefreshKey] = useState(0);
   const [answerIndex, setAnswerIndex] = useState<number | null>(null);
   const [answerMessage, setAnswerMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [refreshMessage, setRefreshMessage] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15_000);
     let active = true;
     async function load() {
       try {
@@ -44,13 +47,23 @@ export function MaxCourseDocuments({ courseId, token, onRenew }: {
         if (response.status === 401) { if (active) onRenew(); return; }
         if (!response.ok) throw new Error("Could not list documents");
         const result: { documents: DocumentRow[] } = await response.json();
-        if (active) setDocuments(result.documents);
+        if (active) {
+          setDocuments(result.documents);
+          if (refreshKey > 0) setRefreshMessage("Список документов обновлён.");
+        }
       } catch {
         if (active) setMessage("Документы временно недоступны.");
+      } finally {
+        window.clearTimeout(timeout);
+        if (active) setLoading(false);
       }
     }
     void load();
-    return () => { active = false; controller.abort(); };
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
   }, [courseId, token, onRenew, refreshKey]);
 
   async function openDocument(documentId: string) {
@@ -127,14 +140,18 @@ export function MaxCourseDocuments({ courseId, token, onRenew }: {
     }
   }
 
-  if (documents.length === 0 && !message) return null;
+  if (documents.length === 0 && !message && !loading && !refreshMessage) return null;
   return <section className={styles.workDocuments} aria-labelledby="max-course-documents-title">
     <h4 id="max-course-documents-title">Рабочие документы</h4>
-    <button type="button" className={styles.back} disabled={busy} onClick={() => {
+    <button type="button" className={styles.back} disabled={busy || loading} onClick={() => {
       setOpened(null);
       setMessage("");
+      setRefreshMessage("");
+      setLoading(true);
       setRefreshKey((value) => value + 1);
-    }}>Обновить документы</button>
+    }}>{loading ? "Проверяем документы..." : "Проверить новые документы"}</button>
+    {loading && <p role="status">Загружаем список документов.</p>}
+    {!loading && refreshMessage && <p role="status">{refreshMessage}{documents.length === 0 ? " Опубликованных документов пока нет." : ""}</p>}
     {documents.length > 0 && <ul className={styles.documentList}>{documents.map((document) => <li key={document.id}>
       <div><strong>{document.title}</strong><small>Версия {document.versionNumber} · {document.sourceName}</small>
         {document.changeSummary && <p>Изменилось: {document.changeSummary}</p>}</div>
