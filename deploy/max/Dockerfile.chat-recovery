@@ -1,0 +1,4 @@
+# Patch only the chat worker; rebuild the full stack with Dockerfile.max separately.
+ARG BASE_IMAGE=prodigy-max:chat-ux-final-20260926
+FROM ${BASE_IMAGE}
+COPY --chown=node:node src/modules/max/application/chat-flow.ts /app/src/modules/max/application/chat-flow.ts

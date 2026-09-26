@@ -4,7 +4,7 @@ import { createMaxBotClient, MaxBotApiError } from "./bot-client";
 
 const profile = { user_id: 123, username: "example_bot", first_name: "Example", is_bot: true };
 
-test("callback edits the existing message and a stale callback only shows a notification", async () => {
+test("callback refreshes the existing message together with a notification", async () => {
   const bodies: unknown[] = [];
   const client = createMaxBotClient("test-secret", async (url, init) => {
     assert.equal(url, "https://platform-api2.max.ru/answers?callback_id=cb%2F1");
@@ -12,8 +12,25 @@ test("callback edits the existing message and a stale callback only shows a noti
     return Response.json({ success: true });
   });
   assert.equal(await client.answerCallback("cb/1", "mid", { text: "Вопрос 2", buttons: [] }), "mid");
-  await client.answerCallback("cb/1", "mid", { notification: "Кнопка устарела" });
-  assert.deepEqual(bodies[1], { notification: "Кнопка устарела" });
+  const buttons = [[{
+    type: "callback" as const,
+    text: "Прогресс",
+    payload: "chat:1234567890123456:progress",
+  }]];
+  await client.answerCallback("cb/1", "mid", {
+    notification: "Меню обновлено.",
+    text: "Выберите действие.",
+    buttons,
+  });
+  assert.deepEqual(bodies[1], {
+    notification: "Меню обновлено.",
+    message: {
+      text: "Выберите действие.",
+      attachments: [{ type: "inline_keyboard", payload: { buttons } }],
+    },
+  });
+  await client.answerCallback("cb/1", "mid", { notification: "Действие недоступно." });
+  assert.deepEqual(bodies[2], { notification: "Действие недоступно." });
 });
 
 test("unsuccessful callback response is not assumed delivered or retried", async () => {

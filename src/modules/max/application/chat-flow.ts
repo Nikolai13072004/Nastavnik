@@ -83,11 +83,35 @@ export function createChatFlow(deps: {
     let index = -1;
     if (input.type === "callback") {
       const parts = input.payload.split(":");
-      if (parts[1] !== state.version)
+      if (parts[1] !== state.version) {
+        if (
+          parts[2] === "menu" ||
+          !state.courseId ||
+          !courses.some((course) => course.id === state.courseId)
+        ) {
+          return {
+            ...(await menu()),
+            notification: "Меню обновлено. Выберите курс.",
+          };
+        }
+        // Recover this message without applying an action from an older screen.
+        const quiz = state.quiz;
+        if (
+          quiz?.courseId === state.courseId &&
+          !state.quizPaused &&
+          Object.keys(quiz.answers).length < quiz.questions.length
+        ) {
+          return {
+            ...chatQuizQuestion(state),
+            notification: "Показан текущий вопрос. Старый ответ не засчитан.",
+          };
+        }
         return {
-          notification:
-            "Кнопка устарела. Используйте последнее меню или напишите «Курсы».",
+          text: `${courses.find((course) => course.id === state.courseId)!.title.slice(0, 180)}\n\nМеню обновлено. Выберите действие для этого курса.`,
+          buttons: actions(),
+          notification: "Меню обновлено.",
         };
+      }
       action = parts[2];
       index = parts.length === 4 ? Number(parts[3]) : -1;
     } else {

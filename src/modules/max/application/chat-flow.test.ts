@@ -135,6 +135,9 @@ function fixture(
     revoke: () => {
       assigned = false;
     },
+    expireSession: () => {
+      state = null;
+    },
     counts: () => ({ starts, submits, asks }),
     courseReads: () => courseReads,
     state: () => state,
@@ -160,6 +163,87 @@ test("chat menus select an assigned course without starting or submitting a test
   assert.equal(panel.buttons?.flat().length, 5);
   const progress = await f.flow(callback(panel, "Прогресс"));
   assert.match(progress.text!, /Материалы: 1 из 1/);
+  assert.deepEqual(f.counts(), { starts: 0, submits: 0, asks: 0 });
+});
+
+test("an older course panel refreshes in place with working actions", async () => {
+  const f = fixture();
+  const oldPanel = await select(f);
+  await f.flow(callback(oldPanel, "Прогресс"));
+  const recovered = await f.flow(callback(oldPanel, "Пройти тест"));
+  assert.match(recovered.text!, /Первый день.*\n\nМеню обновлено/);
+  const tests = await f.flow(callback(recovered, "Пройти тест"));
+  assert.match(tests.text!, /Выберите тест/);
+  assert.deepEqual(f.counts(), { starts: 0, submits: 0, asks: 0 });
+});
+
+test("an expired session opens a usable menu from an old button without starting a test", async () => {
+  const f = fixture();
+  const panel = await select(f);
+  f.expireSession();
+  const recovered = await f.flow(callback(panel, "Пройти тест"));
+  assert.match(recovered.text!, /Назначено курсов: 1/);
+  const selected = await f.flow(callback(recovered, "Первый день"));
+  assert.match(selected.text!, /Первый день/);
+  assert.deepEqual(f.counts(), { starts: 0, submits: 0, asks: 0 });
+});
+
+test("an old quiz answer shows the current question without altering saved answers", async () => {
+  const f = fixture();
+  const first = await begin(f);
+  await f.flow(callback(first, "1"));
+  const recovered = await f.flow(callback(first, "2"));
+  assert.match(recovered.text!, /Вопрос 2 из 2/);
+  assert.deepEqual(f.state()?.quiz?.answers, { q1: 0 });
+  const result = await f.flow(callback(recovered, "2"));
+  assert.match(result.text!, /Тест пройден/);
+  assert.deepEqual(f.answers(), { q1: 0, q2: 1 });
+  assert.deepEqual(f.counts(), { starts: 1, submits: 1, asks: 0 });
+});
+
+test("an old course button cannot select a different course or use an old source index", async () => {
+  const f = fixture([
+    { id: "course", title: "Первый день", expiresAt: null },
+    { id: "other", title: "Другой", expiresAt: null },
+  ]);
+  await select(f);
+  const answer = await f.flow(text("Как получить доступ?"));
+  const menu = await f.flow(callback(answer, "Другой курс"));
+  await f.flow(callback(menu, "Другой"));
+  f.learning.document = async () => {
+    assert.fail("An old source must not be loaded for another course");
+  };
+  const recovered = await f.flow(callback(answer, "Открыть источник 1"));
+  assert.match(recovered.text!, /^Другой\n/);
+  assert.equal(f.state()?.courseId, "other");
+  assert.deepEqual(f.counts(), { starts: 0, submits: 0, asks: 1 });
+});
+
+test("an old menu button can return to current assignments while preserving a quiz draft", async () => {
+  const f = fixture();
+  const panel = await select(f);
+  const tests = await f.flow(callback(panel, "Пройти тест"));
+  const confirmation = await f.flow(callback(tests, "Проверка"));
+  const first = await f.flow(callback(confirmation, "Начать или продолжить"));
+  await f.flow(callback(first, "1"));
+  const recovered = await f.flow(callback(panel, "Другой курс"));
+  assert.match(recovered.text!, /Назначено курсов: 1/);
+  assert.deepEqual(f.state()?.quiz?.answers, { q1: 0 });
+  assert.equal(f.state()?.quizPaused, true);
+  assert.deepEqual(f.counts(), { starts: 1, submits: 0, asks: 0 });
+});
+
+test("an old panel cannot recover revoked courses or an unlinked profile", async () => {
+  const f = fixture();
+  const panel = await select(f);
+  await f.flow(text("курсы"));
+  f.revoke();
+  const recovered = await f.flow(callback(panel, "Пройти тест"));
+  assert.match(recovered.text!, /Назначенных курсов пока нет/);
+  assert.equal(f.state()?.quiz, undefined);
+  f.unlink();
+  const unlinked = await f.flow(callback(panel, "Прогресс"));
+  assert.match(unlinked.text!, /Сначала свяжите профиль/);
   assert.deepEqual(f.counts(), { starts: 0, submits: 0, asks: 0 });
 });
 

@@ -1,0 +1,6 @@
+**
+!src
+!src/modules
+!src/modules/max
+!src/modules/max/application
+!src/modules/max/application/chat-flow.ts

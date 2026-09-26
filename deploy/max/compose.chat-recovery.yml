@@ -1,0 +1,3 @@
+services:
+  worker:
+    image: prodigy-max:chat-recovery-20260926
