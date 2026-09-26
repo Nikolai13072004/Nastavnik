@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 import { PrismaClient } from "@prisma/client";
 
@@ -21,8 +21,11 @@ async function main() {
     const userId = Number(link.maxUserId);
     assert.ok(Number.isSafeInteger(userId) && userId > 0);
     const timestamp = Date.now();
+    const chat = process.env.MAX_CHAT_ENABLED === "true";
+    const messageId = randomUUID();
     const eventKey = createHash("sha256")
-      .update(JSON.stringify([botUsername, "help", userId, Math.floor(timestamp / 30_000)]))
+      .update(JSON.stringify(chat ? [botUsername, "chat", userId, "text", messageId]
+        : [botUsername, "help", userId, Math.floor(timestamp / 30_000)]))
       .digest("hex");
     assert.equal(await db.maxBotDelivery.findUnique({ where: { eventKey } }), null,
       "Help already queued in this time window; do not repeat");
@@ -31,7 +34,7 @@ async function main() {
       message: {
         sender: { user_id: userId, is_bot: false },
         recipient: { chat_type: "dialog" },
-        body: { text: "Помощь" },
+        body: { mid: messageId, text: "Помощь" },
       },
     });
     for (let receipt = 0; receipt < 2; receipt++) {
@@ -43,7 +46,7 @@ async function main() {
       });
       assert.equal(response.status, 200);
     }
-    assert.equal(await db.maxBotDelivery.count({ where: { eventKey, kind: "HELP" } }), 1);
+    assert.equal(await db.maxBotDelivery.count({ where: { eventKey, kind: chat ? "CHAT" : "HELP" } }), 1);
     for (let check = 0; check < 20; check++) {
       const job = await db.maxBotDelivery.findUnique({ where: { eventKey } });
       if (job?.status === "SENT") {

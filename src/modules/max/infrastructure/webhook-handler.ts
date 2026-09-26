@@ -1,7 +1,8 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { parseBotEvent, type BotDeliveryRepository } from "../application/bot-delivery";
+import { parseChatEvent } from "../application/chat";
 
-type WebhookConfig = { secret?: string; botUsername?: string };
+type WebhookConfig = { secret?: string; botUsername?: string; chatEnabled?: boolean };
 
 function json(status: number, error?: string) {
   return Response.json(error ? { error } : { ok: true }, {
@@ -52,7 +53,10 @@ export async function handleMaxWebhook(
     return json(415, "JSON_REQUIRED");
   }
   try {
-    const event = parseBotEvent(await readEvent(request), now);
+    const value = await readEvent(request);
+    const chat = config.chatEnabled && value && typeof value === "object" && "update_type" in value &&
+      ["message_created", "message_callback"].includes(String(value.update_type));
+    const event = chat ? parseChatEvent(value, now) : parseBotEvent(value, now);
     if (event === null) return json(400, "INVALID_EVENT");
     if (event !== "ignored") await repository.enqueue(botUsername, event);
     // Acknowledge only after durable persistence; no external send within the HTTP request.

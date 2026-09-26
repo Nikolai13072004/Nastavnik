@@ -6,6 +6,12 @@ import { createMaxBotClient, MaxBotApiError } from "../src/modules/max/infrastru
 import { prismaBotDeliveryRepository } from "../src/modules/max/infrastructure/prisma-bot-delivery-repository";
 import { prismaMaxLearnerRepository } from "../src/modules/max/infrastructure/prisma-max-learner-repository";
 import { createLoadBotCourses } from "../src/modules/max/application/bot-course-menu";
+import { randomBytes } from "node:crypto";
+import { createChatFlow } from "../src/modules/max/application/chat-flow";
+import { createListMaxCourses } from "../src/modules/max/application/list-courses";
+import { createChatInputCodec } from "../src/modules/max/infrastructure/chat-input-codec";
+import { createChatLearningClient } from "../src/modules/max/infrastructure/chat-learning-client";
+import { createPrismaChatSessions } from "../src/modules/max/infrastructure/prisma-chat-session-repository";
 
 config({ quiet: true });
 
@@ -17,7 +23,21 @@ async function main() {
   const profile = await client.getProfile();
   if (profile.username !== username) throw new Error("MAX bot does not match");
   const loadCourses = createLoadBotCourses(prismaMaxLearnerRepository);
+  const chatEnabled = process.env.MAX_CHAT_ENABLED === "true";
+  const chatFlow = chatEnabled ? createChatFlow({
+    access: { identity: prismaMaxLearnerRepository.findIdentity,
+      courses: createListMaxCourses(prismaMaxLearnerRepository) },
+    sessions: createPrismaChatSessions(username),
+    learning: createChatLearningClient(token, process.env.MAX_CHAT_INTERNAL_ORIGIN ?? "http://web:3000"),
+    botUsername: username,
+    version: () => randomBytes(12).toString("base64url"),
+  }) : null;
+  const inputCodec = createChatInputCodec(token);
   const sendMenu = async (userId: number, botUsername: string) => {
+    if (chatFlow) {
+      const reply = await chatFlow(String(userId), { type: "text", text: "курсы", messageId: "menu" });
+      return client.sendChat(userId, botUsername, reply);
+    }
     const courses = await loadCourses(String(userId));
     try {
       if (courses === null) return await client.sendHelp(userId, botUsername);
@@ -37,7 +57,14 @@ async function main() {
   process.once("SIGTERM", () => { stopping = true; });
   do {
     const result = await deliverNextBotMessage(
-      prismaBotDeliveryRepository, username, client.sendWelcome, client.sendRevision, sendMenu,
+      prismaBotDeliveryRepository, username, chatEnabled ? sendMenu : client.sendWelcome, client.sendRevision, sendMenu,
+      async (job) => {
+        if (!chatFlow || !job.chatInputCiphertext) throw new Error("Chat sender is not configured");
+        const input = inputCodec.open(job.chatInputCiphertext, job.eventKey);
+        const reply = await chatFlow(job.maxUserId, input);
+        return input.type === "callback" ? client.answerCallback(input.callbackId, input.messageId, reply)
+          : client.sendChat(Number(job.maxUserId), username, reply);
+      },
     );
     console.log(`MAX delivery: ${result}`);
     if (result === "uncertain") throw new Error("Delivery requires operator review");

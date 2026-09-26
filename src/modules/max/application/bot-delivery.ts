@@ -1,11 +1,14 @@
+import type { ChatEvent } from "./chat";
+
 export type BotStart = { userId: number; chatId: number; timestamp: number };
 export type BotHelp = { kind: "HELP"; userId: number; timestamp: number };
-export type BotEvent = BotStart | BotHelp;
+export type BotEvent = BotStart | BotHelp | ChatEvent;
 export type BotDelivery = {
   eventKey: string;
   maxUserId: string;
-  kind?: "WELCOME" | "DOCUMENT_REVISION" | "HELP";
+  kind?: "WELCOME" | "DOCUMENT_REVISION" | "HELP" | "CHAT";
   documentId?: string | null;
+  chatInputCiphertext?: string | null;
 };
 export type DeliveryOutcome =
   | { status: "SENT"; messageId: string }
@@ -65,6 +68,9 @@ export async function deliverNextBotMessage(
   sendHelp: (userId: number, botUsername: string) => Promise<string> = async () => {
     throw new Error("Help sender is not configured");
   },
+  sendChat: (job: BotDelivery) => Promise<string> = async () => {
+    throw new Error("Chat sender is not configured");
+  },
 ): Promise<"idle" | "sent" | "uncertain"> {
   const job = await repository.claim(botUsername);
   if (!job) return "idle";
@@ -72,7 +78,7 @@ export async function deliverNextBotMessage(
   let outcome: DeliveryOutcome;
   try {
     const sender = job.kind === "DOCUMENT_REVISION" ? sendRevision : job.kind === "HELP" ? sendHelp : send;
-    const messageId = await sender(Number(job.maxUserId), botUsername);
+    const messageId = job.kind === "CHAT" ? await sendChat(job) : await sender(Number(job.maxUserId), botUsername);
     outcome = { status: "SENT", messageId };
   } catch {
     // Even transport/5xx failures can follow a successful remote send. No automatic resend.

@@ -3,6 +3,12 @@ import type { PublishedCourseSnapshotQuiz } from "@/lib/course-content";
 
 export type MaxQuizQuestion = { id: string; prompt: string; options: string[] };
 
+export function isShortChatQuiz(questions: MaxQuizQuestion[]) {
+  return questions.length > 0 && questions.length <= 10 && questions.every((question) =>
+    question.prompt.length + question.options.reduce((size, option) => size + option.length + 5, 0) <= 3000,
+  );
+}
+
 function readOptions(question: AssessmentQuestion): string[] | null {
   if (question.type !== "SINGLE_CHOICE") return null;
   try {

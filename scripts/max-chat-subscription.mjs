@@ -30,24 +30,26 @@ async function main() {
   const own = subscriptions.filter((subscription) => subscription.url === endpoint.href);
   if (own.length !== 1) throw new Error("Expected exactly one existing pilot subscription");
   const current = own[0].update_types;
-  if (!Array.isArray(current) || current.length === 0 || current.includes("message_created")) {
-    console.log("MAX subscription: message events already enabled; no change.");
+  const required = process.env.MAX_CHAT_ENABLED === "true"
+    ? ["message_created", "message_callback"] : ["message_created"];
+  if (!Array.isArray(current) || current.length === 0 || required.every((type) => current.includes(type))) {
+    console.log("MAX subscription: required events already enabled; no change.");
     return;
   }
   if (!current.every((type) => typeof type === "string")) throw new Error("Invalid event types");
   if (!process.argv.includes("--apply")) {
-    console.log("MAX subscription: message_created must be added; rerun with --apply after deploying web and worker.");
+    console.log("MAX subscription: required events missing; rerun with --apply after deploying web and worker.");
     return;
   }
   const result = await request("/subscriptions", {
-    url: endpoint.href, update_types: [...current, "message_created"], secret,
+    url: endpoint.href, update_types: [...new Set([...current, ...required])], secret,
   });
   if (result.success !== true) throw new Error("Subscription change not confirmed");
   const updated = (await request("/subscriptions")).subscriptions;
   if (!Array.isArray(updated) || !updated.some((subscription) =>
     subscription.url === endpoint.href && Array.isArray(subscription.update_types)
-    && subscription.update_types.includes("message_created"))) throw new Error("Subscription not verified");
-  console.log("MAX subscription: message_created enabled; existing events preserved.");
+    && required.every((type) => subscription.update_types.includes(type)))) throw new Error("Subscription not verified");
+  console.log("MAX subscription: required events enabled; existing events preserved.");
 }
 
 main().catch(() => {

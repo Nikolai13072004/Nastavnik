@@ -8,5 +8,6 @@ export function receiveMaxEvent(request: Request) {
       ? undefined
       : process.env.MAX_WEBHOOK_SECRET,
     botUsername: process.env.MAX_BOT_USERNAME,
+    chatEnabled: process.env.MAX_CHAT_ENABLED === "true",
   }, prismaBotDeliveryRepository);
 }

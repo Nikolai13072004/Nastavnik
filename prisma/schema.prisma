@@ -40,6 +40,7 @@ model User {
   passwordResetTokens      PasswordResetToken[]
   maxLink                  MaxAccountLink?
   maxLinkInvite            MaxLinkInvite?
+  maxChatSessions          MaxChatSession[]
   itemViews                CourseItemView[]
   learningEvents           LearningEvent[]
   quizAttempts             QuizAttempt[]
@@ -1001,20 +1002,38 @@ model StorageFile {
 }
 
 model MaxBotDelivery {
-  eventKey    String    @id
-  botUsername String
-  maxUserId   String
-  kind        String    @default("WELCOME")
-  documentId  String?
-  status      String    @default("PENDING")
-  createdAt   DateTime  @default(now())
-  startedAt   DateTime?
-  finishedAt  DateTime?
-  messageId   String?
-  errorCode   String?
+  eventKey            String    @id
+  botUsername         String
+  maxUserId           String
+  kind                String    @default("WELCOME")
+  documentId          String?
+  status              String    @default("PENDING")
+  createdAt           DateTime  @default(now())
+  startedAt           DateTime?
+  finishedAt          DateTime?
+  messageId           String?
+  errorCode           String?
+  chatInputCiphertext String?
+  chatInputExpiresAt  DateTime?
 
   @@index([botUsername, status, createdAt])
   @@index([botUsername, finishedAt])
+  @@index([botUsername, maxUserId, createdAt])
+}
+
+model MaxChatSession {
+  botUsername    String
+  maxUserId      String
+  userId         String
+  organizationId String
+  linkedAt       DateTime
+  stateJson      String
+  expiresAt      DateTime
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([botUsername, maxUserId])
+  @@index([expiresAt])
 }
 
 model PlatformSettings {

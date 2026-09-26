@@ -1,5 +1,6 @@
 import { buildBotCourseMenu } from "../application/bot-course-menu";
 import type { MaxCourse } from "../application/list-courses";
+import type { ChatButton, ChatReply } from "../application/chat";
 
 const API_ORIGIN = "https://platform-api2.max.ru";
 const RESPONSE_LIMIT = 64 * 1024;
@@ -66,7 +67,7 @@ export function createMaxBotClient(token: string, fetcher: typeof fetch = fetch)
   }
 
   async function sendWithApp(userId: number, botUsername: string, text: string,
-    buttons = [[{ type: "open_app", text: "Открыть обучение", web_app: botUsername }]]): Promise<string> {
+    buttons: ChatButton[][] = [[{ type: "open_app", text: "Открыть обучение", web_app: botUsername }]]): Promise<string> {
     if (!Number.isSafeInteger(userId) || userId <= 0 || !/^[a-zA-Z0-9_]+$/.test(botUsername)) {
       throw new MaxBotApiError("configuration");
     }
@@ -85,6 +86,22 @@ export function createMaxBotClient(token: string, fetcher: typeof fetch = fetch)
   }
 
   return {
+    async sendChat(userId: number, botUsername: string, reply: ChatReply): Promise<string> {
+      if (!reply.text || reply.text.length > 4000) throw new MaxBotApiError("configuration");
+      return sendWithApp(userId, botUsername, reply.text, reply.buttons ?? []);
+    },
+    async answerCallback(callbackId: string, messageId: string, reply: ChatReply): Promise<string> {
+      if (!callbackId.trim() || callbackId.length > 256 || !messageId ||
+          (reply.text && reply.text.length > 4000)) throw new MaxBotApiError("configuration");
+      const body = {
+        notification: reply.notification,
+        message: reply.text ? { text: reply.text, attachments: [{ type: "inline_keyboard",
+          payload: { buttons: reply.buttons ?? [] } }] } : undefined,
+      };
+      const result = await request(`/answers?callback_id=${encodeURIComponent(callbackId)}`, body);
+      if (!isObject(result) || result.success !== true) throw new MaxBotApiError("response");
+      return messageId;
+    },
     async getProfile(): Promise<MaxBotProfile> {
       const data = await request("/me");
       if (!isObject(data) || data.is_bot !== true || !Number.isSafeInteger(data.user_id)

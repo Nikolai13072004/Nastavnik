@@ -4,6 +4,25 @@ import { createMaxBotClient, MaxBotApiError } from "./bot-client";
 
 const profile = { user_id: 123, username: "example_bot", first_name: "Example", is_bot: true };
 
+test("callback edits the existing message and a stale callback only shows a notification", async () => {
+  const bodies: unknown[] = [];
+  const client = createMaxBotClient("test-secret", async (url, init) => {
+    assert.equal(url, "https://platform-api2.max.ru/answers?callback_id=cb%2F1");
+    bodies.push(JSON.parse(String(init?.body)));
+    return Response.json({ success: true });
+  });
+  assert.equal(await client.answerCallback("cb/1", "mid", { text: "Вопрос 2", buttons: [] }), "mid");
+  await client.answerCallback("cb/1", "mid", { notification: "Кнопка устарела" });
+  assert.deepEqual(bodies[1], { notification: "Кнопка устарела" });
+});
+
+test("unsuccessful callback response is not assumed delivered or retried", async () => {
+  let calls = 0;
+  const client = createMaxBotClient("test-secret", async () => { calls++; return Response.json({ success: false }); });
+  await assert.rejects(client.answerCallback("cb", "mid", { text: "Ответ" }), MaxBotApiError);
+  assert.equal(calls, 1);
+});
+
 test("profile check uses only official HTTPS origin, header auth, deadline and no redirects/cache", async () => {
   const client = createMaxBotClient("test-secret", async (url, init) => {
     assert.equal(url, "https://platform-api2.max.ru/me");
