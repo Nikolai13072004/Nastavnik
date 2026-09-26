@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { IBM_Plex_Sans, IBM_Plex_Mono, Onest } from "next/font/google";
+import localFont from "next/font/local";
 import { AppShell } from "@/components/AppShell";
 import { Providers } from "@/components/Providers";
 import { ScrollToTopButton } from "@/components/ScrollToTopButton";
@@ -9,22 +9,27 @@ import "./globals.css";
 
 // Дизайн-язык Trenning: IBM Plex Sans (интерфейс), Onest (заголовки),
 // IBM Plex Mono (числа/коды). Все три с кириллицей.
-const ibmSans = IBM_Plex_Sans({
+const ibmSans = localFont({
+  src: "./fonts/IBMPlexSans-Variable.woff2",
   variable: "--font-ibm-sans",
-  subsets: ["latin", "cyrillic"],
-  weight: ["400", "500", "600"],
+  weight: "400 600",
+  display: "swap",
 });
 
-const ibmMono = IBM_Plex_Mono({
+const ibmMono = localFont({
+  src: [
+    { path: "./fonts/IBMPlexMono-Medium.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/IBMPlexMono-SemiBold.woff2", weight: "600", style: "normal" },
+  ],
   variable: "--font-ibm-mono",
-  subsets: ["latin", "cyrillic"],
-  weight: ["500", "600"],
+  display: "swap",
 });
 
-const onest = Onest({
+const onest = localFont({
+  src: "./fonts/Onest-Variable.woff2",
   variable: "--font-onest",
-  subsets: ["latin", "cyrillic"],
-  weight: ["500", "600", "700"],
+  weight: "500 700",
+  display: "swap",
 });
 
 export async function generateMetadata(): Promise<Metadata> {

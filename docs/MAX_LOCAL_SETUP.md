@@ -1,5 +1,39 @@
 # Локальный запуск Prodigy MAX
 
+## Проверка сборки на пустой базе
+
+Из папки `prodigy`, при запущенном Docker:
+
+Если builder `max-review-build` ещё не создан, один раз настройте лимиты:
+
+```sh
+docker buildx create --name max-review-build --driver docker-container --driver-opt memory=4g,cpu-period=100000,cpu-quota=200000
+```
+
+```sh
+python deploy/max/create-review-env.py
+docker buildx build --builder max-review-build --load -f Dockerfile.max -t prodigy-max:review-20260926 .
+docker compose --env-file deploy/max/.env.review -f deploy/max/compose.review.yml up -d --wait
+docker compose --env-file deploy/max/.env.review -f deploy/max/compose.review.yml exec web node node_modules/tsx/dist/cli.mjs scripts/max-pilot-setup.ts setup
+docker compose --env-file deploy/max/.env.review -f deploy/max/compose.review.yml exec web node node_modules/tsx/dist/cli.mjs scripts/max-pilot-setup.ts assessment
+docker compose --env-file deploy/max/.env.review -f deploy/max/compose.review.yml exec web node node_modules/tsx/dist/cli.mjs scripts/max-pilot-setup.ts scope
+```
+
+Не заменяйте ограниченную сборку обычным `next build` или Turbopack на Windows.
+
+`http://127.0.0.1:53100/max` показывает экран открытия из MAX.
+`/login` и `/admin` должны вернуть 404. База не публикует порт, её том имеет
+префикс `prodigy-max-review`. Миграции применяются отдельным сервисом до запуска web.
+`setup` откажется работать, если база уже содержит посторонние данные.
+
+Этот запуск проверяет сборку, схему и данные, но не подписанный вход MAX и не AI.
+Токен бота намеренно пуст, исходящие запросы сети закрыты. Для настоящей проверки
+откройте Mini App на HTTPS-стенде по [сценарию](MAX_DEMO.md).
+Остановка без удаления данных: `docker compose --env-file deploy/max/.env.review -f deploy/max/compose.review.yml stop`.
+Файл `.env.review` не публиковать; на Windows хранить в закрытой пользовательской папке.
+
+## Разработка
+
 Команды выполняются из папки `prodigy`. Нужен локальный `.env` с параметрами отдельной dev-БД. Для установки зависимостей нужен интернет; запускать `npm ci` только при необходимости.
 
 ```powershell

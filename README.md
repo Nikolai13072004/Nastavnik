@@ -1,3 +1,24 @@
+## Prodigy в MAX: конкурсный пилот
+
+Prodigy хранит сотрудников, курсы и результаты. Здесь также находятся бот,
+Mini App и HR-экраны MAX. [Vedomo](https://github.com/clapzy2/effective-business-max-vedomo/tree/feature/max-review)
+отвечает за AI по утверждённым документам; для приватного репозитория нужен доступ.
+Конкурсные изменения находятся в ветке `feature/max-foundation`, PR #2 пока не слит.
+
+Для проверки найдите `@se14424319_bot` в MAX и откройте Mini App.
+[Сценарий и ожидаемые результаты](docs/MAX_DEMO.md),
+[полный roadmap](docs/MAX_CONTEST_ROADMAP.md), [статус](docs/MAX_STATUS.md).
+Новый тестовый профиль связывается одноразовым кодом от администратора стенда.
+Обычная ссылка в браузере не заменяет вход через MAX.
+
+Клиент MAX: `src/app/max` и `src/app/api/max`.
+Локальная разработка: [MAX_LOCAL_SETUP.md](docs/MAX_LOCAL_SETUP.md).
+Рабочий пилот: [deploy/max/README.md](deploy/max/README.md).
+В демо только вымышленные данные; это не коммерческий релиз LMS.
+
+Ниже остаётся общая документация Prodigy. Для конкурсного стенда используйте
+инструкции MAX выше, а не старые команды запуска с SQLite.
+
 ## Public Access
 
 Приложение публикуется через общий Traefik из Docker network `traefik-public`

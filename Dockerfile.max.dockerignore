@@ -16,6 +16,9 @@
 !scripts
 !scripts/max-worker.ts
 !scripts/max-check.ts
+!scripts/max-pilot-setup.ts
+!scripts/import-max-demo-document.ts
+!scripts/max-knowledge-mapping.ts
 public/uploads
 public/branding
 **/.env*

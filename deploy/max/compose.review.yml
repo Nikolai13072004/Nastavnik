@@ -1,0 +1,81 @@
+name: prodigy-max-review
+
+x-app: &app
+  image: prodigy-max:review-20260926
+  build:
+    context: ../..
+    dockerfile: Dockerfile.max
+  environment:
+    DATABASE_URL: postgresql://max_review:${REVIEW_DB_PASSWORD:?Create .env.review first}@db:5432/max_review?schema=public&connection_limit=3
+    AUTH_SECRET: ${REVIEW_AUTH_SECRET:?Create .env.review first}
+    AUTH_TRUST_HOST: "true"
+    APP_BASE_URL: http://127.0.0.1:53100
+    AUTH_URL: http://127.0.0.1:53100
+    NEXTAUTH_URL: http://127.0.0.1:53100
+    MAX_LMS_LINKS: disabled
+    MAX_DISABLE_EMAIL: "true"
+    MAX_BOT_TOKEN: ""
+    EMAIL_PROVIDER: stub
+  init: true
+  mem_limit: 768m
+  cpus: 0.7
+  pids_limit: 80
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: ["ALL"]
+  networks: [backend]
+  logging:
+    driver: json-file
+    options: {max-size: "5m", max-file: "2"}
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: max_review
+      POSTGRES_DB: max_review
+      POSTGRES_PASSWORD: ${REVIEW_DB_PASSWORD:?Create .env.review first}
+    volumes: ["database:/var/lib/postgresql/data"]
+    networks: [backend]
+    mem_limit: 384m
+    cpus: 0.5
+    pids_limit: 80
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U max_review -d max_review"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  migrate:
+    <<: *app
+    command: ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
+    depends_on:
+      db: {condition: service_healthy}
+
+  web:
+    <<: *app
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  gateway:
+    image: nginx:stable-alpine
+    depends_on:
+      web: {condition: service_healthy}
+    ports: ["127.0.0.1:53100:8080"]
+    volumes: ["./nginx.conf:/etc/nginx/nginx.conf:ro"]
+    networks: [backend, browser]
+    mem_limit: 64m
+    cpus: 0.2
+    pids_limit: 40
+
+networks:
+  backend:
+    internal: true
+  browser:
+
+volumes:
+  database:
