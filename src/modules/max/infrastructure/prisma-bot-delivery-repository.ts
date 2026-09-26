@@ -44,7 +44,10 @@ export const prismaBotDeliveryRepository: BotDeliveryRepository = {
           where: {
             documentId: job.documentId,
             document: { approvedAt: { not: null }, revokedAt: null },
-            user: { status: "ACTIVE" },
+            user: {
+              status: "ACTIVE",
+              maxLink: { is: { maxUserId: job.maxUserId } },
+            },
           },
           select: { userId: true, organizationId: true, courseId: true },
         }) : null;

@@ -154,9 +154,32 @@ test("HR confirms a revision audience and sees the repeated-learning result", as
   assert.equal(await prisma.maxBotDelivery.count({
     where: { documentId: revision.id, kind: "DOCUMENT_REVISION" },
   }), 2);
+  await prisma.maxBotDelivery.updateMany({
+    where: { documentId: revision.id, maxUserId: lateLearner.maxUserId },
+    data: { createdAt: new Date(0) },
+  });
   const sends: number[] = [];
   assert.equal(await deliverNextBotMessage(prismaBotDeliveryRepository, process.env.MAX_BOT_USERNAME,
     async () => assert.fail("welcome should not be sent"),
     async (userId) => { sends.push(userId); return "revision-mid"; }), "sent");
   assert.equal(sends.length, 1);
+  const lateDelivery = await prisma.maxBotDelivery.findFirstOrThrow({
+    where: { documentId: revision.id, maxUserId: lateLearner.maxUserId },
+  });
+  assert.equal(lateDelivery.status, "SENT");
+  assert.equal(await prisma.maxBotDelivery.count({
+    where: { documentId: revision.id, maxUserId: learner.maxUserId, status: "PENDING" },
+  }), 1);
+
+  await prisma.maxBotDelivery.update({
+    where: { eventKey: lateDelivery.eventKey },
+    data: { finishedAt: new Date(0) },
+  });
+  assert.equal(await deliverNextBotMessage(prismaBotDeliveryRepository, process.env.MAX_BOT_USERNAME,
+    async () => assert.fail("welcome should not be sent"),
+    async (userId) => { sends.push(userId); return "original-learner-mid"; }), "sent");
+  assert.equal(sends.length, 2);
+  assert.equal(await prisma.maxBotDelivery.count({
+    where: { documentId: revision.id, status: "SENT" },
+  }), 2);
 });
