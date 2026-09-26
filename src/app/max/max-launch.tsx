@@ -19,17 +19,27 @@ type LaunchState =
   | { kind: "verified"; firstName: string; employee: Employee | null; session: { token: string; expiresAt: string } | null; managerAccess: boolean }
   | { kind: "error"; message: string };
 
-export function MaxLaunch({ showLmsLinks = false, knowledgeCourseId }: {
+const DESIGN_PREVIEW_STATE: LaunchState = {
+  kind: "verified",
+  firstName: "Алексей",
+  employee: { name: "Алексей Смирнов", organizationName: "Демо-компания" },
+  session: { token: "design-preview", expiresAt: "2099-01-01T00:00:00.000Z" },
+  managerAccess: false,
+};
+
+export function MaxLaunch({ showLmsLinks = false, knowledgeCourseId, designPreview = false }: {
   showLmsLinks?: boolean;
   knowledgeCourseId?: string;
+  designPreview?: boolean;
 }) {
-  const [state, setState] = useState<LaunchState>({ kind: "loading" });
+  const [state, setState] = useState<LaunchState>(() => designPreview ? DESIGN_PREVIEW_STATE : { kind: "loading" });
   const [initialCourseId, setInitialCourseId] = useState<string | undefined>();
   const [mounted, setMounted] = useState(false);
   const pending = useRef<AbortController | null>(null);
 
   useEffect(() => {
     setMounted(true);
+    if (designPreview) return;
     const timeout = window.setTimeout(() => {
       setState((current) => current.kind === "loading"
         ? { kind: "error", message: "MAX не ответил вовремя. Проверьте соединение и попробуйте снова." }
@@ -39,9 +49,13 @@ export function MaxLaunch({ showLmsLinks = false, knowledgeCourseId }: {
       window.clearTimeout(timeout);
       pending.current?.abort();
     };
-  }, []);
+  }, [designPreview]);
 
   const verify = useCallback(async () => {
+    if (designPreview) {
+      setState(DESIGN_PREVIEW_STATE);
+      return;
+    }
     pending.current?.abort();
     const bridge = (window as Window & { WebApp?: { initData?: string } }).WebApp;
     if (!bridge) {
@@ -85,7 +99,7 @@ export function MaxLaunch({ showLmsLinks = false, knowledgeCourseId }: {
     } finally {
       window.clearTimeout(timeout);
     }
-  }, []);
+  }, [designPreview]);
 
   if (!mounted) {
     return <main className={styles.boot} aria-label="Загрузка Prodigy"><span className={styles.brandMark}>P</span></main>;
@@ -104,15 +118,15 @@ export function MaxLaunch({ showLmsLinks = false, knowledgeCourseId }: {
   return (
     <MaxUI resetBody={false} className={styles.maxUi}>
     <main className={styles.page}>
-      <Script src="https://st.max.ru/js/max-web-app.js" strategy="afterInteractive"
+      {!designPreview && <Script src="https://st.max.ru/js/max-web-app.js" strategy="afterInteractive"
         onReady={() => void verify()}
-        onError={() => setState({ kind: "error", message: "Не удалось подключиться к MAX. Проверьте соединение и откройте приложение повторно." })} />
+        onError={() => setState({ kind: "error", message: "Не удалось подключиться к MAX. Проверьте соединение и откройте приложение повторно." })} />}
       <header className={styles.header}>
         <div className={styles.brandLockup}>
           <span className={styles.brandMark} aria-hidden>P</span>
           <span className={styles.brand}>Prodigy <small>Обучение в MAX</small></span>
         </div>
-        <span className={styles.preview}>MAX Mini App</span>
+        <span className={styles.preview}>{designPreview ? "Design preview" : "MAX Mini App"}</span>
       </header>
       <section className={styles.content} aria-labelledby="launch-title">
         <div className={styles.hero}>
@@ -132,7 +146,7 @@ export function MaxLaunch({ showLmsLinks = false, knowledgeCourseId }: {
         {state.kind === "verified" && !state.employee && <LinkEmployee onLinked={() => void verify()} />}
         {state.kind === "verified" && state.employee && state.session && <MaxCourses token={state.session.token}
           managerAccess={state.managerAccess} knowledgeCourseId={knowledgeCourseId} initialCourseId={initialCourseId}
-          onRenew={() => void verify()} />}
+          designPreview={designPreview} onRenew={() => void verify()} />}
         {state.kind === "verified" && state.employee && !state.session && <p>Не удалось открыть учебную сессию. Откройте приложение повторно.</p>}
         {state.kind === "error" && <Button stretched size="medium" iconBefore={<RefreshCw size={20} />} onClick={() => void verify()}>Повторить</Button>}
         {showLmsLinks && state.kind === "verified" && !state.employee ? <div className={styles.actions}>

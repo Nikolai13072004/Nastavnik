@@ -7,8 +7,13 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function MaxPage() {
+export default async function MaxPage({ searchParams }: {
+  searchParams: Promise<{ preview?: string | string[] }>;
+}) {
   await connection();
+  const params = await searchParams;
+  const designPreview = process.env.MAX_DESIGN_PREVIEW === "true" && params.preview === "1";
   return <MaxLaunch showLmsLinks={process.env.MAX_LMS_LINKS === "enabled"}
+    designPreview={designPreview}
     knowledgeCourseId={process.env.MAX_VEDOMO_ENABLED === "true" ? process.env.MAX_VEDOMO_COURSE_ID : undefined} />;
 }
