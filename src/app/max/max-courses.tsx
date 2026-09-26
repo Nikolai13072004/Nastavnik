@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { MaxCourse } from "@/modules/max/application/list-courses";
 import styles from "./max.module.css";
 import { MaxQuiz, type MaxQuizSummary } from "./max-quiz";
@@ -24,10 +24,11 @@ type CourseDetail = {
   hasUnsupportedItems: boolean;
 };
 
-export function MaxCourses({ token, managerAccess, knowledgeCourseId, onRenew }: {
+export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCourseId, onRenew }: {
   token: string;
   managerAccess: boolean;
   knowledgeCourseId?: string;
+  initialCourseId?: string;
   onRenew: () => void;
 }) {
   const [state, setState] = useState<CourseState>({ kind: "loading" });
@@ -37,6 +38,7 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, onRenew }:
   const [refreshKey, setRefreshKey] = useState(0);
   const [refreshMessage, setRefreshMessage] = useState("");
   const [confirmMaterialId, setConfirmMaterialId] = useState<string | null>(null);
+  const handledLaunch = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -57,6 +59,24 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, onRenew }:
           return;
         }
         const result = await response.json();
+        if (!active) return;
+        if (initialCourseId && handledLaunch.current !== initialCourseId) {
+          if (!result.courses.some((course: MaxCourse) => course.id === initialCourseId)) {
+            setDetailMessage("Курс из сообщения больше не доступен. Выберите курс из списка или обратитесь к HR.");
+          } else {
+            try {
+              const courseResponse = await fetch(`/api/max/course?courseId=${encodeURIComponent(initialCourseId)}`, {
+                headers: { Authorization: `Bearer ${token}` }, cache: "no-store", signal: controller.signal,
+              });
+              if (!courseResponse.ok) throw new Error();
+              const loaded: { course: CourseDetail } = await courseResponse.json();
+              if (active) setDetail(loaded.course);
+            } catch {
+              if (active) setDetailMessage("Курс из сообщения не открылся. Попробуйте открыть его из списка.");
+            }
+          }
+          if (active) handledLaunch.current = initialCourseId;
+        }
         if (active) {
           setState({ kind: "ready", courses: result.courses });
           if (refreshKey > 0) setRefreshMessage("Список курсов обновлён.");
@@ -73,7 +93,7 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, onRenew }:
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [token, refreshKey]);
+  }, [token, refreshKey, initialCourseId]);
 
   async function openCourse(courseId: string) {
     setBusy(true);
@@ -183,7 +203,9 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, onRenew }:
         {detail.hasUnsupportedItems && <p>Некоторые форматы материалов или тестов пока не доступны в мини-приложении.</p>}
       </div> : state.kind === "ready" && (state.courses.length === 0
         ? <p>Сейчас нет доступных курсов. Новые назначения появятся здесь после публикации и назначения в LMS.</p>
-        : <ul>{state.courses.map((course) => <li key={course.id}>
+        : <ul>{[...state.courses].sort((left, right) =>
+          Number(right.id === knowledgeCourseId) - Number(left.id === knowledgeCourseId))
+          .map((course) => <li key={course.id}>
           <h3>{course.title}</h3>
           <p>{course.expiresAt ? `Доступ до ${new Date(course.expiresAt).toLocaleString("ru-RU")}` : "Без ограничения срока"}</p>
           <button type="button" className={styles.retry} disabled={busy} onClick={() => void openCourse(course.id)}>Открыть курс</button>

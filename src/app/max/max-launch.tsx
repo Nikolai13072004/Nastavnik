@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "./max.module.css";
 import { LinkEmployee } from "./link-employee";
 import { MaxCourses } from "./max-courses";
+import { parseCourseLaunch } from "@/modules/max/application/bot-course-menu";
 
 type Employee = { name: string; organizationName: string };
 
@@ -20,6 +21,7 @@ export function MaxLaunch({ showLmsLinks = true, knowledgeCourseId }: {
   knowledgeCourseId?: string;
 }) {
   const [state, setState] = useState<LaunchState>({ kind: "loading" });
+  const [initialCourseId, setInitialCourseId] = useState<string | undefined>();
   const pending = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -67,6 +69,8 @@ export function MaxLaunch({ showLmsLinks = true, knowledgeCourseId }: {
         return;
       }
       if (data.status !== "identity_verified" || typeof data.firstName !== "string") throw new Error("Invalid response");
+      // This is only navigation. The courses API still authorizes every read.
+      setInitialCourseId(parseCourseLaunch(new URLSearchParams(bridge.initData).get("start_param")));
       setState({ kind: "verified", firstName: data.firstName, employee: data.employee ?? null,
         session: data.session ?? null, managerAccess: data.managerAccess === true });
     } catch {
@@ -105,7 +109,8 @@ export function MaxLaunch({ showLmsLinks = true, knowledgeCourseId }: {
         </div>
         {state.kind === "verified" && !state.employee && <LinkEmployee onLinked={() => void verify()} />}
         {state.kind === "verified" && state.employee && state.session && <MaxCourses token={state.session.token}
-          managerAccess={state.managerAccess} knowledgeCourseId={knowledgeCourseId} onRenew={() => void verify()} />}
+          managerAccess={state.managerAccess} knowledgeCourseId={knowledgeCourseId} initialCourseId={initialCourseId}
+          onRenew={() => void verify()} />}
         {state.kind === "verified" && state.employee && !state.session && <p>Не удалось открыть учебную сессию. Откройте приложение повторно.</p>}
         {state.kind === "error" && <button className={styles.retry} onClick={() => void verify()}>Повторить проверку</button>}
         {showLmsLinks ? <>

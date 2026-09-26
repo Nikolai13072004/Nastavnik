@@ -1,3 +1,6 @@
+import { buildBotCourseMenu } from "../application/bot-course-menu";
+import type { MaxCourse } from "../application/list-courses";
+
 const API_ORIGIN = "https://platform-api2.max.ru";
 const RESPONSE_LIMIT = 64 * 1024;
 
@@ -62,7 +65,8 @@ export function createMaxBotClient(token: string, fetcher: typeof fetch = fetch)
     }
   }
 
-  async function sendWithApp(userId: number, botUsername: string, text: string): Promise<string> {
+  async function sendWithApp(userId: number, botUsername: string, text: string,
+    buttons = [[{ type: "open_app", text: "Открыть обучение", web_app: botUsername }]]): Promise<string> {
     if (!Number.isSafeInteger(userId) || userId <= 0 || !/^[a-zA-Z0-9_]+$/.test(botUsername)) {
       throw new MaxBotApiError("configuration");
     }
@@ -70,7 +74,7 @@ export function createMaxBotClient(token: string, fetcher: typeof fetch = fetch)
       text,
       attachments: [{
         type: "inline_keyboard",
-        payload: { buttons: [[{ type: "open_app", text: "Открыть обучение", web_app: botUsername }]] },
+        payload: { buttons },
       }],
     });
     if (!isObject(data) || !isObject(data.message) || !isObject(data.message.body)
@@ -106,6 +110,11 @@ export function createMaxBotClient(token: string, fetcher: typeof fetch = fetch)
     async sendHelp(userId: number, botUsername: string): Promise<string> {
       return sendWithApp(userId, botUsername,
         "Курсы, материалы, вопросы AI и тесты сейчас доступны в приложении по кнопке ниже. Выберите назначенный курс. Если профиль ещё не связан, получите код у HR и введите его внутри приложения. Не отправляйте в чат коды, личные данные или рабочие документы. Вопросы и тесты прямо в чате добавим отдельно.");
+    },
+
+    async sendCourseMenu(userId: number, botUsername: string, courses: MaxCourse[], preferredCourseId?: string): Promise<string> {
+      const menu = buildBotCourseMenu(courses, botUsername, preferredCourseId);
+      return sendWithApp(userId, botUsername, menu.text, menu.buttons);
     },
   };
 }

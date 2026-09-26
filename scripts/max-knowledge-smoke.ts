@@ -7,6 +7,8 @@ async function main() {
   if (!expectedDocumentId) throw new Error("Provide the approved Vedomo document ID");
   const botToken = process.env.MAX_BOT_TOKEN;
   if (!botToken) throw new Error("MAX_BOT_TOKEN is missing");
+  const courseId = process.env.MAX_VEDOMO_COURSE_ID;
+  if (!courseId) throw new Error("MAX_VEDOMO_COURSE_ID is missing");
 
   const db = new PrismaClient();
   let session: string;
@@ -32,7 +34,7 @@ async function main() {
   const correct = await fetch(endpoint, {
     method: "POST",
     headers,
-    body: JSON.stringify({ courseId: "max-pilot-demo-course", question: "Что делать, если код привязки потерян?" }),
+    body: JSON.stringify({ courseId, question: "Что делать, если код привязки потерян?" }),
     signal: AbortSignal.timeout(120_000),
   });
   assert.equal(correct.status, 200);
@@ -46,7 +48,7 @@ async function main() {
     item.documentId === expectedDocumentId);
   assert.ok(source.courseDocumentId, "Source must point to an authorized local document");
   const documentEndpoint = new URL("/api/max/documents", endpoint);
-  documentEndpoint.searchParams.set("courseId", "max-pilot-demo-course");
+  documentEndpoint.searchParams.set("courseId", courseId);
   documentEndpoint.searchParams.set("documentId", source.courseDocumentId);
   const documentResponse = await fetch(documentEndpoint, { headers, signal: AbortSignal.timeout(15_000) });
   assert.equal(documentResponse.status, 200);
@@ -70,7 +72,7 @@ async function main() {
   const anonymous = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ courseId: "max-pilot-demo-course", question: "Что делать, если код потерян?" }),
+    body: JSON.stringify({ courseId, question: "Что делать, если код потерян?" }),
   });
   assert.equal(anonymous.status, 401);
   console.log("anonymous request: denied");

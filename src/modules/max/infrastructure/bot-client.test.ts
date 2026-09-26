@@ -56,6 +56,20 @@ test("generic help replies privately with honest capabilities and no user-suppli
   assert.equal(await client.sendHelp(456, "example_bot"), "help-mid");
 });
 
+test("course menu sends assigned titles with short, course-specific app buttons", async () => {
+  const client = createMaxBotClient("test-secret", async (url, init) => {
+    assert.equal(url, "https://platform-api2.max.ru/messages?user_id=456");
+    const body = JSON.parse(String(init?.body));
+    assert.match(body.text, /1\. Onboarding/);
+    assert.equal(body.format, undefined);
+    assert.deepEqual(body.attachments[0].payload.buttons[0], [{
+      type: "open_app", text: "Курс 1", web_app: "example_bot", payload: "course_onboarding",
+    }]);
+    return Response.json({ message: { body: { mid: "menu-mid" } } });
+  });
+  assert.equal(await client.sendCourseMenu(456, "example_bot", [{ id: "onboarding", title: "Onboarding", expiresAt: null }]), "menu-mid");
+});
+
 test("HTTP failures, rate limits and transport failures do not retry or leak secrets", async () => {
   for (const status of [401, 429, 500]) {
     let calls = 0;

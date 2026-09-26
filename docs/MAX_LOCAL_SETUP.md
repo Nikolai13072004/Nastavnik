@@ -32,6 +32,22 @@ docker compose --env-file deploy/max/.env.review -f deploy/max/compose.review.ym
 Остановка без удаления данных: `docker compose --env-file deploy/max/.env.review -f deploy/max/compose.review.yml stop`.
 Файл `.env.review` не публиковать; на Windows хранить в закрытой пользовательской папке.
 
+## Общий учебный курс
+
+После `setup`, `assessment` и `scope` можно добавить общий курс, не удаляя два
+прежних. Используется только утверждённый учебный текст из репозитория.
+Команды из `prodigy`, в PowerShell:
+
+```powershell
+docker compose --env-file deploy/max/.env.review -f deploy/max/compose.review.yml run --rm --no-deps -v "${PWD}/docs/drafts/onboarding-policy.md:/run/onboarding-policy.md:ro" web node node_modules/tsx/dist/cli.mjs scripts/import-max-demo-document.ts /run/onboarding-policy.md
+docker compose --env-file deploy/max/.env.review -f deploy/max/compose.review.yml run --rm --no-deps web node node_modules/tsx/dist/cli.mjs scripts/max-onboarding-setup.ts --create-pilot-course
+```
+
+Ожидаемый результат: `CREATED`, затем `ALREADY_EXISTS` при повторном запуске.
+Курс содержит обязательный материал, документ и тест из трёх вопросов.
+AI отдельно требует Vedomo, сервисный ключ и mapping документа; эти команды
+не включают AI и не подтверждают чистый запуск всей связки.
+
 ## Разработка
 
 Команды выполняются из папки `prodigy`. Нужен локальный `.env` с параметрами отдельной dev-БД. Для установки зависимостей нужен интернет; запускать `npm ci` только при необходимости.

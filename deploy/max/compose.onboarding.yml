@@ -1,0 +1,7 @@
+services:
+  web:
+    image: prodigy-max:onboarding-20260926
+  worker:
+    image: prodigy-max:onboarding-20260926
+  migrate:
+    image: prodigy-max:onboarding-20260926

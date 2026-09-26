@@ -1,5 +1,3 @@
-import "server-only";
-
 import prisma from "@/lib/prisma";
 import { parsePublishedCourseSnapshot } from "@/lib/course-content";
 import type { MaxSessionIdentity } from "./learner-session";

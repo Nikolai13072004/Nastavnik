@@ -2,8 +2,10 @@ import { config } from "dotenv";
 import { setTimeout as delay } from "node:timers/promises";
 import prisma from "../src/lib/prisma";
 import { deliverNextBotMessage } from "../src/modules/max/application/bot-delivery";
-import { createMaxBotClient } from "../src/modules/max/infrastructure/bot-client";
+import { createMaxBotClient, MaxBotApiError } from "../src/modules/max/infrastructure/bot-client";
 import { prismaBotDeliveryRepository } from "../src/modules/max/infrastructure/prisma-bot-delivery-repository";
+import { prismaMaxLearnerRepository } from "../src/modules/max/infrastructure/prisma-max-learner-repository";
+import { createLoadBotCourses } from "../src/modules/max/application/bot-course-menu";
 
 config({ quiet: true });
 
@@ -14,13 +16,28 @@ async function main() {
   const client = createMaxBotClient(token);
   const profile = await client.getProfile();
   if (profile.username !== username) throw new Error("MAX bot does not match");
+  const loadCourses = createLoadBotCourses(prismaMaxLearnerRepository);
+  const sendMenu = async (userId: number, botUsername: string) => {
+    const courses = await loadCourses(String(userId));
+    try {
+      if (courses === null) return await client.sendHelp(userId, botUsername);
+      return await client.sendCourseMenu(
+        userId, botUsername, courses, process.env.MAX_VEDOMO_COURSE_ID,
+      );
+    } catch (error) {
+      if (error instanceof MaxBotApiError) {
+        console.error(`MAX menu: ${error.code}, HTTP ${error.status ?? "unavailable"}`);
+      }
+      throw error;
+    }
+  };
 
   let stopping = false;
   process.once("SIGINT", () => { stopping = true; });
   process.once("SIGTERM", () => { stopping = true; });
   do {
     const result = await deliverNextBotMessage(
-      prismaBotDeliveryRepository, username, client.sendWelcome, client.sendRevision, client.sendHelp,
+      prismaBotDeliveryRepository, username, client.sendWelcome, client.sendRevision, sendMenu,
     );
     console.log(`MAX delivery: ${result}`);
     if (result === "uncertain") throw new Error("Delivery requires operator review");
