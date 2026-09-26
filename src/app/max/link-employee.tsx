@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { Button, Input, Typography } from "@maxhub/max-ui";
+import { Link2 } from "lucide-react";
 import styles from "./max.module.css";
 
 const errorMessages: Record<string, string> = {
@@ -42,13 +44,16 @@ export function LinkEmployee({ onLinked }: { onLinked: () => void }) {
 
   return (
     <form onSubmit={submit} className={styles.linkForm}>
-      <label htmlFor="employee-code">Одноразовый код привязки</label>
-      <input id="employee-code" value={token} onChange={(event) => setToken(event.target.value)}
+      <Typography.Title asChild variant="large-strong"><label htmlFor="employee-code">Одноразовый код привязки</label></Typography.Title>
+      <Input id="employee-code" value={token} onChange={(event) => setToken(event.target.value)}
         required maxLength={32} minLength={32} pattern="[a-zA-Z0-9_\-]{32}" autoComplete="off"
-        autoCapitalize="none" spellCheck={false} disabled={busy} aria-describedby="employee-code-hint" />
+        autoCapitalize="none" spellCheck={false} disabled={busy} aria-describedby="employee-code-hint"
+        placeholder="Вставьте 32-значный код" iconBefore={<Link2 size={20} />} />
       <p id="employee-code-hint">Не вводите код, который прислал другой человек.</p>
       {error && <p role="alert">{error}</p>}
-      <button type="submit" className={styles.retry} disabled={busy}>{busy ? "Связываем…" : "Связать мой профиль"}</button>
+      <Button type="submit" stretched size="medium" loading={busy} disabled={busy || token.length !== 32}>
+        Связать профиль
+      </Button>
     </form>
   );
 }

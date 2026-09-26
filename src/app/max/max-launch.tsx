@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import Script from "next/script";
+import { Button, MaxUI, Spinner, Typography } from "@maxhub/max-ui";
+import "@maxhub/max-ui/dist/styles.css";
+import { BookOpen, CheckCircle2, FileText, Link2, MessageCircle, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "./max.module.css";
 import { LinkEmployee } from "./link-employee";
@@ -22,9 +25,11 @@ export function MaxLaunch({ showLmsLinks = true, knowledgeCourseId }: {
 }) {
   const [state, setState] = useState<LaunchState>({ kind: "loading" });
   const [initialCourseId, setInitialCourseId] = useState<string | undefined>();
+  const [mounted, setMounted] = useState(false);
   const pending = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    setMounted(true);
     const timeout = window.setTimeout(() => {
       setState((current) => current.kind === "loading"
         ? { kind: "error", message: "MAX не ответил вовремя. Проверьте соединение и попробуйте снова." }
@@ -82,44 +87,67 @@ export function MaxLaunch({ showLmsLinks = true, knowledgeCourseId }: {
     }
   }, []);
 
+  if (!mounted) {
+    return <main className={styles.boot} aria-label="Загрузка Prodigy"><span className={styles.brandMark}>P</span></main>;
+  }
+
+  const status = state.kind === "loading"
+    ? { icon: <Spinner size={24} />, eyebrow: "Подключение", title: "Проверяем вход…", text: "Подтверждаем безопасный запуск через MAX." }
+    : state.kind === "outside"
+      ? { icon: <MessageCircle size={24} aria-hidden />, eyebrow: "Нужен MAX", title: "Откройте приложение из MAX", text: "Вернитесь в чат с ботом компании и нажмите кнопку мини-приложения — так мы безопасно получим данные для входа." }
+      : state.kind === "verified"
+        ? { icon: <CheckCircle2 size={24} aria-hidden />, eyebrow: "Готово", title: state.employee ? "Профиль подключён" : `${state.firstName}, подтвердите профиль`, text: state.employee
+          ? `${state.employee.name} · ${state.employee.organizationName}`
+          : showLmsLinks ? "Получите одноразовый код в LMS и введите его ниже." : "Получите одноразовый код у HR или руководителя и введите его ниже." }
+        : { icon: <RefreshCw size={24} aria-hidden />, eyebrow: "Не удалось войти", title: "Подключение не завершено", text: state.message };
+
   return (
+    <MaxUI resetBody={false} className={styles.maxUi}>
     <main className={styles.page}>
       <Script src="https://st.max.ru/js/max-web-app.js" strategy="afterInteractive"
         onReady={() => void verify()}
         onError={() => setState({ kind: "error", message: "Не удалось подключиться к MAX. Проверьте соединение и откройте приложение повторно." })} />
       <header className={styles.header}>
-        <span className={styles.brand}>Prodigy <span>/ MAX</span></span>
-        <span className={styles.preview}>Подключение</span>
+        <div className={styles.brandLockup}>
+          <span className={styles.brandMark} aria-hidden>P</span>
+          <span className={styles.brand}>Prodigy <small>Обучение в MAX</small></span>
+        </div>
+        <span className={styles.preview}>MAX Mini App</span>
       </header>
       <section className={styles.content} aria-labelledby="launch-title">
-        <p className={styles.eyebrow}>Обучение сотрудников</p>
-        <h1 id="launch-title">Рабочие знания.<br />В привычном чате.</h1>
-        <p className={styles.intro}>Курсы и учебные материалы вашей компании прямо в MAX.</p>
+        <div className={styles.hero}>
+          <p className={styles.eyebrow}>Корпоративное обучение</p>
+          <Typography.Headline asChild variant="large-strong"><h1 id="launch-title">Развивайтесь<br />каждый день</h1></Typography.Headline>
+          <Typography.Body asChild variant="large"><p className={styles.intro}>Курсы, рабочие инструкции и проверка знаний — прямо в MAX.</p></Typography.Body>
+          <div className={styles.heroVisual} aria-hidden>
+            <span className={styles.heroBubble}><BookOpen size={28} /></span>
+            <span className={styles.heroBubble}><FileText size={24} /></span>
+            <span className={styles.heroBubble}><CheckCircle2 size={25} /></span>
+          </div>
+        </div>
         <div className={styles.status} role="status" aria-live="polite" aria-busy={state.kind === "loading"}>
-          {state.kind === "loading" && <><h2>Проверяем вход…</h2><p>Подтверждаем данные запуска через MAX.</p></>}
-          {state.kind === "outside" && <><h2>Откройте приложение из MAX</h2><p>В чате с ботом компании нажмите кнопку мини-приложения. Обычная ссылка в браузере не передаёт данные для входа.</p></>}
-          {state.kind === "verified" && <>
-            <h2>{state.employee ? "Учётная запись связана" : state.firstName ? `${state.firstName}, профиль MAX подтверждён` : "Профиль MAX подтверждён"}</h2>
-            {state.employee ? <p>{state.employee.name} · {state.employee.organizationName}</p>
-              : <p>{showLmsLinks
-                ? "Для привязки получите код в своей учётной записи LMS и введите его ниже."
-                : "Получите одноразовый код у HR или руководителя и введите его ниже."}</p>}
-          </>}
-          {state.kind === "error" && <><h2>Подключение не завершено</h2><p>{state.message}</p></>}
+          <span className={styles.statusIcon}>{status.icon}</span>
+          <div><span className={styles.statusEyebrow}>{status.eyebrow}</span><h2>{status.title}</h2><p>{status.text}</p></div>
         </div>
         {state.kind === "verified" && !state.employee && <LinkEmployee onLinked={() => void verify()} />}
         {state.kind === "verified" && state.employee && state.session && <MaxCourses token={state.session.token}
           managerAccess={state.managerAccess} knowledgeCourseId={knowledgeCourseId} initialCourseId={initialCourseId}
           onRenew={() => void verify()} />}
         {state.kind === "verified" && state.employee && !state.session && <p>Не удалось открыть учебную сессию. Откройте приложение повторно.</p>}
-        {state.kind === "error" && <button className={styles.retry} onClick={() => void verify()}>Повторить проверку</button>}
-        {showLmsLinks ? <>
-          <Link className={styles.login} href="/connect-max">Получить код в LMS</Link>
-          <br />
-          <Link className={styles.login} href="/login">Войти в веб-версию LMS</Link>
-        </> : null}
+        {state.kind === "error" && <Button stretched size="medium" iconBefore={<RefreshCw size={20} />} onClick={() => void verify()}>Повторить</Button>}
+        {showLmsLinks ? <div className={styles.actions}>
+          <Button asChild stretched size="medium" iconBefore={<Link2 size={20} />}><Link href="/connect-max">Получить код в LMS</Link></Button>
+          <Button asChild stretched size="medium" variant="secondary"><Link href="/login">Открыть веб-версию</Link></Button>
+        </div> : null}
+
+        <div className={styles.features} aria-label="Возможности приложения">
+          <div><BookOpen size={20} /><span><strong>Курсы</strong><small>Учитесь в своём темпе</small></span></div>
+          <div><FileText size={20} /><span><strong>Инструкции</strong><small>Всё рабочее — под рукой</small></span></div>
+          <div><CheckCircle2 size={20} /><span><strong>Тесты</strong><small>Закрепляйте знания</small></span></div>
+        </div>
       </section>
       <footer className={styles.footer}>Вопросы о доступе к обучению можно задать HR или руководителю.</footer>
     </main>
+    </MaxUI>
   );
 }
