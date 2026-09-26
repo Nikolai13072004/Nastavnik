@@ -67,7 +67,7 @@ export const prismaBotDeliveryRepository: BotDeliveryRepository = {
         data: { status: "SKIPPED", finishedAt: clock.now },
       });
       await tx.maxChatSession.deleteMany({ where: { botUsername, expiresAt: { lte: clock.now } } });
-      if (latest?.finishedAt && clock.now.getTime() - latest.finishedAt.getTime() < 1100) return null;
+      if (latest?.finishedAt && clock.now.getTime() - latest.finishedAt.getTime() < 600) return null;
       const job = await tx.maxBotDelivery.findFirst({
         where: { botUsername, status: "PENDING" },
         orderBy: [{ createdAt: "asc" }, { eventKey: "asc" }],

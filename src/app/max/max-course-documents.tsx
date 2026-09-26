@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "./max.module.css";
+import { MaxDocumentText } from "./max-document-text";
 
 type DocumentRow = {
   id: string;
@@ -14,10 +15,18 @@ type Document = DocumentRow & {
   contentText: string;
   checkQuestion: string | null;
   checkOptions: string[] | null;
-  training: { viewedAt: string | null; passedAt: string | null; attempts: number } | null;
+  training: {
+    viewedAt: string | null;
+    passedAt: string | null;
+    attempts: number;
+  } | null;
 };
 
-export function MaxCourseDocuments({ courseId, token, onRenew }: {
+export function MaxCourseDocuments({
+  courseId,
+  token,
+  onRenew,
+}: {
   courseId: string;
   token: string;
   onRenew: () => void;
@@ -31,6 +40,21 @@ export function MaxCourseDocuments({ courseId, token, onRenew }: {
   const [answerMessage, setAnswerMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshMessage, setRefreshMessage] = useState("");
+  const preview = useRef<HTMLDivElement | null>(null);
+  const openRequest = useRef<AbortController | null>(null);
+  const openedId = opened?.id;
+
+  useEffect(() => () => openRequest.current?.abort(), []);
+  useEffect(() => {
+    if (!openedId || !preview.current) return;
+    preview.current.focus({ preventScroll: true });
+    preview.current.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "instant"
+        : "smooth",
+      block: "start",
+    });
+  }, [openedId]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -44,7 +68,10 @@ export function MaxCourseDocuments({ courseId, token, onRenew }: {
           cache: "no-store",
           signal: controller.signal,
         });
-        if (response.status === 401) { if (active) onRenew(); return; }
+        if (response.status === 401) {
+          if (active) onRenew();
+          return;
+        }
         if (!response.ok) throw new Error("Could not list documents");
         const result: { documents: DocumentRow[] } = await response.json();
         if (active) {
@@ -67,6 +94,10 @@ export function MaxCourseDocuments({ courseId, token, onRenew }: {
   }, [courseId, token, onRenew, refreshKey]);
 
   async function openDocument(documentId: string) {
+    openRequest.current?.abort();
+    const controller = new AbortController();
+    openRequest.current = controller;
+    const timeout = window.setTimeout(() => controller.abort(), 15_000);
     setBusy(true);
     setMessage("");
     try {
@@ -74,12 +105,19 @@ export function MaxCourseDocuments({ courseId, token, onRenew }: {
       const response = await fetch(`/api/max/documents?${query}`, {
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
+        signal: controller.signal,
       });
-      if (response.status === 401) { onRenew(); return; }
+      if (openRequest.current !== controller) return;
+      if (response.status === 401) {
+        onRenew();
+        return;
+      }
       if (!response.ok) {
-        setMessage(response.status === 403 || response.status === 404
-          ? "Доступ к документу изменился. Обновите курс."
-          : "Не удалось открыть документ. Попробуйте снова.");
+        setMessage(
+          response.status === 403 || response.status === 404
+            ? "Доступ к документу изменился. Обновите курс."
+            : "Не удалось открыть документ. Попробуйте снова.",
+        );
         return;
       }
       const result: { document: Document } = await response.json();
@@ -89,21 +127,39 @@ export function MaxCourseDocuments({ courseId, token, onRenew }: {
       if (result.document.training && !result.document.training.viewedAt) {
         const view = await fetch("/api/max/document-training", {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({ courseId, documentId, action: "view" }),
           cache: "no-store",
+          signal: controller.signal,
         });
-        if (view.status === 401) { onRenew(); return; }
-        if (!view.ok) {
-          setMessage("Не удалось сохранить открытие документа. Попробуйте открыть его снова.");
+        if (openRequest.current !== controller) return;
+        if (view.status === 401) {
+          onRenew();
           return;
         }
-        setOpened({ ...result.document, training: { ...result.document.training, viewedAt: new Date().toISOString() } });
+        if (!view.ok) {
+          setMessage(
+            "Не удалось сохранить открытие документа. Попробуйте открыть его снова.",
+          );
+          return;
+        }
+        setOpened({
+          ...result.document,
+          training: {
+            ...result.document.training,
+            viewedAt: new Date().toISOString(),
+          },
+        });
       }
     } catch {
-      setMessage("Не удалось открыть документ. Проверьте соединение.");
+      if (openRequest.current === controller)
+        setMessage("Не удалось открыть документ. Проверьте соединение.");
     } finally {
-      setBusy(false);
+      window.clearTimeout(timeout);
+      if (openRequest.current === controller) setBusy(false);
     }
   }
 
@@ -114,75 +170,179 @@ export function MaxCourseDocuments({ courseId, token, onRenew }: {
     try {
       const response = await fetch("/api/max/document-training", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ courseId, documentId: opened.id, action: "answer", answerIndex }),
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          courseId,
+          documentId: opened.id,
+          action: "answer",
+          answerIndex,
+        }),
         cache: "no-store",
       });
-      if (response.status === 401) { onRenew(); return; }
+      if (response.status === 401) {
+        onRenew();
+        return;
+      }
       if (!response.ok) throw new Error("Could not submit answer");
-      const result: { status: string; attempts?: number } = await response.json();
-      setAnswerMessage(result.status === "PASSED" ? "Верно. Новая редакция изучена."
-        : result.status === "EXHAUSTED" ? "Попытки закончились. Обратитесь к HR."
-          : result.status === "INCORRECT" ? "Пока неверно. Перечитайте изменение и попробуйте ещё раз."
-            : "Сначала откройте документ заново.");
-      setOpened((current) => current && current.training ? {
-        ...current,
-        training: {
-          ...current.training,
-          attempts: result.attempts ?? current.training.attempts,
-          passedAt: result.status === "PASSED" ? new Date().toISOString() : current.training.passedAt,
-        },
-      } : current);
+      const result: { status: string; attempts?: number } =
+        await response.json();
+      setAnswerMessage(
+        result.status === "PASSED"
+          ? "Верно. Новая редакция изучена."
+          : result.status === "EXHAUSTED"
+            ? "Попытки закончились. Обратитесь к HR."
+            : result.status === "INCORRECT"
+              ? "Пока неверно. Перечитайте изменение и попробуйте ещё раз."
+              : "Сначала откройте документ заново.",
+      );
+      setOpened((current) =>
+        current && current.training
+          ? {
+              ...current,
+              training: {
+                ...current.training,
+                attempts: result.attempts ?? current.training.attempts,
+                passedAt:
+                  result.status === "PASSED"
+                    ? new Date().toISOString()
+                    : current.training.passedAt,
+              },
+            }
+          : current,
+      );
     } catch {
-      setAnswerMessage("Ответ не сохранился. Проверьте соединение и попробуйте снова.");
+      setAnswerMessage(
+        "Ответ не сохранился. Проверьте соединение и попробуйте снова.",
+      );
     } finally {
       setBusy(false);
     }
   }
 
-  if (documents.length === 0 && !message && !loading && !refreshMessage) return null;
-  return <section className={styles.workDocuments} aria-labelledby="max-course-documents-title">
-    <h4 id="max-course-documents-title">Рабочие документы</h4>
-    <button type="button" className={styles.back} disabled={busy || loading} onClick={() => {
-      setOpened(null);
-      setMessage("");
-      setRefreshMessage("");
-      setLoading(true);
-      setRefreshKey((value) => value + 1);
-    }}>{loading ? "Проверяем документы..." : "Проверить новые документы"}</button>
-    {loading && <p role="status">Загружаем список документов.</p>}
-    {!loading && refreshMessage && <p role="status">{refreshMessage}{documents.length === 0 ? " Опубликованных документов пока нет." : ""}</p>}
-    {documents.length > 0 && <ul className={styles.documentList}>{documents.map((document) => <li key={document.id}>
-      <div><strong>{document.title}</strong><small>Версия {document.versionNumber} · {document.sourceName}</small>
-        {document.changeSummary && <p>Изменилось: {document.changeSummary}</p>}</div>
-      <button type="button" className={styles.back} disabled={busy}
-        onClick={() => void openDocument(document.id)}>Читать</button>
-    </li>)}</ul>}
-    {message && <p role="status">{message}</p>}
-    {opened && <div className={styles.documentPreview}>
-      <h5>{opened.title}</h5>
-      {opened.changeSummary && <p>Что изменилось: {opened.changeSummary}</p>}
-      <pre>{opened.contentText}</pre>
-      {opened.training && opened.checkQuestion && opened.checkOptions && <div className={styles.documentTraining}>
-        <h5>Проверьте, что вы поняли изменение</h5>
-        <p>{opened.checkQuestion}</p>
-        {opened.training.passedAt ? <p role="status">Проверка пройдена.</p>
-          : opened.training.attempts >= 3 ? <p role="status">Попытки закончились. Обратитесь к HR.</p>
-            : <>
-              <fieldset className={styles.quizQuestion}>
-                <legend>Выберите один ответ</legend>
-                {opened.checkOptions.map((option, index) => <label key={index}>
-                  <input type="radio" name={`document-${opened.id}`} checked={answerIndex === index}
-                    onChange={() => setAnswerIndex(index)} />
-                  {option}
-                </label>)}
-              </fieldset>
-              <button type="button" className={styles.retry} disabled={busy || answerIndex === null ||
-                !opened.training.viewedAt} onClick={() => void submitAnswer()}>Ответить</button>
-            </>}
-        {answerMessage && <p role="status">{answerMessage}</p>}
-      </div>}
-      <button type="button" className={styles.back} onClick={() => setOpened(null)}>Закрыть текст</button>
-    </div>}
-  </section>;
+  return (
+    <section
+      className={styles.workDocuments}
+      aria-labelledby="max-course-documents-title"
+    >
+      <h4 id="max-course-documents-title">Рабочие документы</h4>
+      <p>
+        Документы добавляет и публикует HR в разделе «Отчёт HR». Если нужного
+        файла нет, обратитесь к ответственному за курс.
+      </p>
+      {!loading && !message && documents.length === 0 && (
+        <p>Опубликованных документов пока нет.</p>
+      )}
+      <button
+        type="button"
+        className={styles.back}
+        disabled={busy || loading}
+        onClick={() => {
+          setOpened(null);
+          setMessage("");
+          setRefreshMessage("");
+          setLoading(true);
+          setRefreshKey((value) => value + 1);
+        }}
+      >
+        {loading ? "Проверяем документы..." : "Проверить новые документы"}
+      </button>
+      {loading && <p role="status">Загружаем список документов.</p>}
+      {!loading && refreshMessage && (
+        <p role="status">
+          {refreshMessage}
+          {documents.length === 0 ? " Опубликованных документов пока нет." : ""}
+        </p>
+      )}
+      {documents.length > 0 && (
+        <ul className={styles.documentList}>
+          {documents.map((document) => (
+            <li key={document.id}>
+              <div>
+                <strong>{document.title}</strong>
+                <small>
+                  Версия {document.versionNumber} · {document.sourceName}
+                </small>
+                {document.changeSummary && (
+                  <p>Изменилось: {document.changeSummary}</p>
+                )}
+              </div>
+              <button
+                type="button"
+                className={styles.back}
+                disabled={busy}
+                onClick={() => void openDocument(document.id)}
+              >
+                Читать
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {message && <p role="status">{message}</p>}
+      {opened && (
+        <div
+          ref={preview}
+          tabIndex={-1}
+          className={styles.documentPreview}
+          role="region"
+          aria-label={`Документ: ${opened.title}`}
+        >
+          <h5>{opened.title}</h5>
+          {opened.changeSummary && (
+            <p>Что изменилось: {opened.changeSummary}</p>
+          )}
+          <MaxDocumentText text={opened.contentText} />
+          {opened.training && opened.checkQuestion && opened.checkOptions && (
+            <div className={styles.documentTraining}>
+              <h5>Проверьте, что вы поняли изменение</h5>
+              <p>{opened.checkQuestion}</p>
+              {opened.training.passedAt ? (
+                <p role="status">Проверка пройдена.</p>
+              ) : opened.training.attempts >= 3 ? (
+                <p role="status">Попытки закончились. Обратитесь к HR.</p>
+              ) : (
+                <>
+                  <fieldset className={styles.quizQuestion}>
+                    <legend>Выберите один ответ</legend>
+                    {opened.checkOptions.map((option, index) => (
+                      <label key={index}>
+                        <input
+                          type="radio"
+                          name={`document-${opened.id}`}
+                          checked={answerIndex === index}
+                          onChange={() => setAnswerIndex(index)}
+                        />
+                        {option}
+                      </label>
+                    ))}
+                  </fieldset>
+                  <button
+                    type="button"
+                    className={styles.retry}
+                    disabled={
+                      busy || answerIndex === null || !opened.training.viewedAt
+                    }
+                    onClick={() => void submitAnswer()}
+                  >
+                    Ответить
+                  </button>
+                </>
+              )}
+              {answerMessage && <p role="status">{answerMessage}</p>}
+            </div>
+          )}
+          <button
+            type="button"
+            className={styles.back}
+            onClick={() => setOpened(null)}
+          >
+            Закрыть текст
+          </button>
+        </div>
+      )}
+    </section>
+  );
 }

@@ -134,3 +134,63 @@
   .header { gap: 8px; }
   .content { padding-top: 36px; }
 }
+
+.documentPreview {
+  scroll-margin-top: 24px;
+}
+.documentText {
+  margin: 16px 0;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.documentText h6 {
+  margin: 24px 0 12px;
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 600;
+}
+.documentText h6:first-child {
+  margin-top: 0;
+}
+.documentText p {
+  margin: 12px 0;
+  color: var(--ink);
+  white-space: pre-wrap;
+}
+.documentText ul,
+.documentText ol {
+  margin: 12px 0;
+  padding-left: 24px;
+  list-style-position: outside;
+}
+.documentText ul {
+  list-style-type: disc;
+}
+.documentText ol {
+  list-style-type: decimal;
+}
+.documentText li {
+  padding: 4px 0;
+  border: 0;
+  color: var(--ink);
+}
+.sourceDetails {
+  margin-top: 12px;
+  color: var(--ink-muted);
+}
+.sourceDetails summary {
+  min-height: 44px;
+  padding: 10px 0;
+  color: var(--accent);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.sourceDetails summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+.sourceDetails > p {
+  margin-top: 8px;
+  white-space: pre-wrap;
+  color: var(--ink-muted);
+}

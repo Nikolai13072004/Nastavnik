@@ -174,9 +174,9 @@ export function MaxManagerReport({ token, onRenew }: { token: string; onRenew: (
 
   return <section className={styles.managerReport} aria-labelledby="manager-report-title">
     <h2 id="manager-report-title">Отчёт HR</h2>
-    <p>Результаты сотрудников по курсам вашей организации.</p>
+    <p>Результаты, назначения и документы курсов вашей организации. Чтобы загрузить источник, откройте раздел и выберите курс.</p>
     <button type="button" className={styles.retry} onClick={() => setOpen((value) => !value)}>
-      {open ? "Скрыть отчёт" : "Показать отчёт"}
+      {open ? "Скрыть раздел HR" : "Открыть раздел HR"}
     </button>
     {open && <>
       {busy && <p role="status">Загружаем результаты…</p>}

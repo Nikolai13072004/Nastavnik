@@ -11,7 +11,7 @@
 
 ## Обновление
 
-Собирать образ локально, не на общем VPS. Тег обновления: `prodigy-max:chat-training-20260926`, overlay `compose.chat-training.yml`. Перед загрузкой нового образа проверьте свободное место, состояние своих контейнеров и создайте резервную копию только пилотной БД. Файл `.env` и токены не помещать в образ или логи. После передачи образа сверить SHA-256 архива.
+Собирать образ локально, не на общем VPS. Тег обновления: `prodigy-max:chat-ux-final-20260926`, overlay `compose.chat-ux.yml`. Перед загрузкой нового образа проверьте свободное место, состояние своих контейнеров и создайте резервную копию только пилотной БД. Файл `.env` и токены не помещать в образ или логи. После передачи образа сверить SHA-256 архива.
 
 На сервере сначала проверить новый Compose через `docker compose config --quiet`, затем применить миграции и обновить только нужные сервисы. Не выполнять глобальные Docker prune, restart или `down -v`. На последнем обновлении пересозданы web и worker пилота. БД, gateway и соседние проекты не перезапускались.
 
@@ -25,9 +25,9 @@ gateway-контейнере, сохранить старый файл и вып
 
 ```sh
 cd /opt/prodigy-max
-docker compose -f compose.yml -f compose.chat-training.yml config --quiet
-docker compose -f compose.yml -f compose.chat-training.yml ps
-docker compose -f compose.yml -f compose.chat-training.yml logs --tail 30 web gateway
+docker compose -f compose.yml -f compose.chat-ux.yml config --quiet
+docker compose -f compose.yml -f compose.chat-ux.yml ps
+docker compose -f compose.yml -f compose.chat-ux.yml logs --tail 30 web gateway
 ```
 
 Проверить HTTPS без отключения TLS: `/max` возвращает 200, `/login` и `/admin` - 404, MAX API без сессии - 401. Не проводить нагрузочный тест на общем сервере.
@@ -37,7 +37,7 @@ docker compose -f compose.yml -f compose.chat-training.yml logs --tail 30 web ga
 Перед обновлением 26 сентября сохранены `backups/pre-ux-20260926.dump` и
 `backups/compose-before-ux-20260926.yml`. Схема БД не менялась. Для отката web и worker
 используйте исходный `compose.yml` без нового overlay: `up -d --no-deps --no-build web worker`.
-Для текущего обновления добавляйте `compose.chat-training.yml`, иначе выберется старый образ.
+Для текущего обновления добавляйте `compose.chat-ux.yml`, иначе выберется старый образ.
 
 Подписка MAX должна получать `bot_started`, `message_created` и `message_callback`. Скрипт
 `scripts/max-chat-subscription.mjs` сначала проверяет существующую подписку;
@@ -103,6 +103,24 @@ PostgreSQL. Входящий текст зашифрован отдельным 
 Серверно проверены настоящий ответ GigaChat, точный источник, обязательное чтение,
 одна общая попытка, сертификат, старые кнопки и истечение назначения. Использовался
 временный профиль без отправки сообщений MAX. Нажатия на настоящем телефоне ещё нужны.
+
+## Навигация и источники, 26 сентября
+
+Overlay `compose.chat-ux.yml` обновляет только web и worker. Схема не меняется.
+До обновления сохранены `backups/pre-chat-ux-final-20260926.dump` и
+`backups/env-before-chat-ux-final-20260926.env` с правами 600. Для отката выбрать
+`compose.chat-training.yml` и выполнить `up -d --no-deps --no-build web worker`.
+Текущие данные и ключ Vedomo оставить.
+
+Опрос очереди идёт раз в 250 мс, между отправками выдерживается минимум 600 мс.
+Повторное чтение курса на каждый ответ теста убрано. Это сокращает внутреннее
+ожидание, но не гарантирует мгновенный ответ MAX или GigaChat. В журнале worker
+появилось время обработки без текста вопросов.
+
+Перед обновлением обнаружена остановка worker с общей ошибкой; причина не
+установлена. В очереди не было незавершённых отправок. Перезапущен только worker
+пилота, старый `UNCERTAIN` не повторяли. После обновления проверить health,
+очередь и отсутствие новых остановок.
 
 ## До полного релиза
 

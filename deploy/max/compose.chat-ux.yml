@@ -1,0 +1,12 @@
+services:
+  web:
+    image: prodigy-max:chat-ux-final-20260926
+    environment:
+      MAX_CHAT_ENABLED: "true"
+  worker:
+    image: prodigy-max:chat-ux-final-20260926
+    environment:
+      MAX_CHAT_ENABLED: "true"
+      MAX_CHAT_INTERNAL_ORIGIN: http://web:3000
+  migrate:
+    image: prodigy-max:chat-ux-final-20260926

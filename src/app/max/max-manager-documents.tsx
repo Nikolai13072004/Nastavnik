@@ -2,6 +2,7 @@
 
 import { type FormEvent, useEffect, useState } from "react";
 import styles from "./max.module.css";
+import { MaxDocumentText } from "./max-document-text";
 
 type DocumentRow = {
   id: string;
@@ -210,6 +211,8 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
   return <section className={styles.workDocuments} aria-labelledby="max-manager-documents-title">
     <h3 id="max-manager-documents-title">Рабочие документы курса</h3>
     <p>Загрузите документ, проверьте текст и опубликуйте. Для новой редакции укажите, что изменилось, и подготовьте один вопрос. Черновики сотрудникам не видны. Не загружайте конфиденциальные документы на пилотный стенд.</p>
+    <p>Публикация открывает документ для чтения. Чтобы AI отвечал по новому файлу,
+      администратор должен отдельно подключить его к Vedomo и проверить источники.</p>
     <form onSubmit={(event) => void upload(event)}>
       <label className={styles.reportSelect}>Это новая редакция?
         <select value={supersedesId} onChange={(event) => {
@@ -300,7 +303,11 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
     {preview && <div className={styles.documentPreview}>
       <h4>{preview.title}</h4>
       {preview.changeSummary && <p>Изменение: {preview.changeSummary}</p>}
-      <pre>{preview.contentText}</pre>
+      <MaxDocumentText text={preview.contentText} />
+      <details>
+        <summary>Исходный текст файла</summary>
+        <pre>{preview.contentText}</pre>
+      </details>
       {preview.checkQuestion && <div className={styles.documentCheckPreview}>
         <strong>{preview.checkQuestion}</strong>
         <ol>{(preview.checkOptionsJson ? JSON.parse(preview.checkOptionsJson) as string[] : []).map((option, index) =>
