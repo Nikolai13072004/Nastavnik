@@ -11,5 +11,7 @@ test("queued input is encrypted, bound to its event and authenticated with a sep
   assert.notEqual(sealed, codec.seal(input, "event"));
   assert.throws(() => codec.open(sealed, "another-event"));
   assert.throws(() => createChatInputCodec("different-secret").open(sealed, "event"));
-  assert.throws(() => codec.open(`${sealed.slice(0, 30)}x${sealed.slice(31)}`, "event"));
+  const tampered = Buffer.from(sealed, "base64url");
+  tampered[tampered.length - 1] ^= 1;
+  assert.throws(() => codec.open(tampered.toString("base64url"), "event"));
 });

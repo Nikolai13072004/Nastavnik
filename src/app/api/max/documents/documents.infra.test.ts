@@ -204,7 +204,7 @@ test("HTTP upload and original download preserve PDF and UTF-8 bytes without exp
         method: "POST", headers: managerHeaders,
         body: JSON.stringify({ courseId: originalCourse, title, sourceName, fileBase64: bytes.toString("base64") }),
       }));
-      assert.equal(upload.status, 201);
+      assert.equal(upload.status, 201, `${extension}: ${await upload.text()}`);
       const document = await prisma.maxCourseDocument.findFirstOrThrow({ where: { courseId: originalCourse, title } });
       originalKeys.add(document.originalKey!);
       assert.ok(document.contentText.length > 0);
