@@ -1,0 +1,10 @@
+# Select only with compose.review.yml and compose.joint-review.yml.
+services:
+  web:
+    volumes:
+      - ../../scripts/max-full-restore-smoke.ts:/app/scripts/max-full-restore-smoke.ts:ro
+  vedomo-api:
+    environment:
+      PRODIGY_DOCUMENT_IMPORT_ENABLED: "true"
+    volumes:
+      - ./check-restored-vedomo.py:/run/check-restored-vedomo.py:ro

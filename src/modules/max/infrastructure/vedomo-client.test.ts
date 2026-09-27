@@ -128,3 +128,37 @@ test("upstream bodies and credentials never appear in errors", async () => {
     (error: unknown) => error instanceof VedomoClientError && error.code === "http" &&
       !error.message.includes(token));
 });
+
+test("imports exact prepared text without exposing a key or accepting a different hash", async () => {
+  const document = { sourceName: "policy.md", contentText: "Approved text", contentHash: "a".repeat(64), retry: false };
+  const fetcher: typeof fetch = async (url, init) => {
+    assert.equal(url, "https://vedomo.example/api/integrations/prodigy/documents/import");
+    assert.equal(init?.method, "POST");
+    assert.equal(init?.redirect, "error");
+    assert.equal(init?.cache, "no-store");
+    assert.equal((init?.headers as Record<string, string>).Authorization, `Bearer ${token}`);
+    assert.deepEqual(JSON.parse(init?.body as string), {
+      source_name: document.sourceName, content_text: document.contentText,
+      content_hash: document.contentHash, retry: false,
+    });
+    return Response.json({ status: "READY", document_id: "source-1", document_hash: document.contentHash });
+  };
+  const result = await createVedomoClient("https://vedomo.example", token, fetcher).importDocument("org-1", "course-1", document);
+  assert.equal(result.status, "READY");
+  assert.equal(result.documentId, "source-1");
+  const wrong: typeof fetch = async () => Response.json({ status: "READY", document_id: "source-1", document_hash: "b".repeat(64) });
+  await assert.rejects(() => createVedomoClient("https://vedomo.example", token, wrong)
+    .importDocument("org-1", "course-1", document), VedomoClientError);
+  await assert.rejects(() => createVedomoClient("https://vedomo.example", token, fetcher)
+    .importDocument("org-1", "course-1", { ...document, contentText: "x".repeat(32769) }), VedomoClientError);
+});
+
+test("scopes retrieval to current approved document IDs", async () => {
+  const fetcher: typeof fetch = async (_url, init) => {
+    assert.deepEqual(JSON.parse(init?.body as string), { question: "Вопрос?", document_ids: ["document-1"] });
+    return Response.json({ answer: "Ответственный.", refused: false, sources: [source] });
+  };
+  const client = createVedomoClient("https://vedomo.example", token, fetcher);
+  await client.ask("org-1", "course-1", "Вопрос?", ["document-1"]);
+  await assert.rejects(() => client.ask("org-1", "course-1", "Вопрос?", []), VedomoClientError);
+});

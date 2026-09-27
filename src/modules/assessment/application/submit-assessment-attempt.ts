@@ -22,6 +22,7 @@ export type SubmitAssessmentAttemptCommand = {
   retryDelayMinutes: number | null;
   timeLimitMinutes: number | null;
   securityEventsJson: string | null;
+  practice?: boolean;
   now?: Date;
 };
 
@@ -46,6 +47,7 @@ export function createSubmitAssessmentAttempt(repository: AssessmentRepository) 
             completedAttempts,
             maxAttempts: command.maxAttempts,
             retryDelayMinutes: draftAttempt ? null : command.retryDelayMinutes,
+            practice: command.practice,
             now,
           });
           assertTimeLimit({
@@ -90,7 +92,7 @@ export function createSubmitAssessmentAttempt(repository: AssessmentRepository) 
             ? "PASSED"
             : hasPendingReview
               ? "PENDING_REVIEW"
-              : allCompletedAttempts.length >= command.maxAttempts
+              : !command.practice && allCompletedAttempts.length >= command.maxAttempts
                 ? "FAILED"
                 : "IN_PROGRESS";
           await transaction.saveBestResult({

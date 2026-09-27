@@ -252,7 +252,7 @@ model MaxKnowledgeDocument {
   @@index([organizationId, courseId, publishedSnapshotHash, revokedAt], map: "max_knowledge_doc_current_idx")
 }
 
-// Text-only pilot documents. File bytes are not served from public storage.
+// Originals are private and require MAX session and course access.
 model MaxCourseDocument {
   id             String    @id @default(cuid())
   organizationId String
@@ -261,6 +261,9 @@ model MaxCourseDocument {
   sourceName     String
   contentText    String
   contentHash    String
+  originalKey    String?
+  originalHash   String?
+  originalSize   Int?
   supersedesId   String?   @unique
   versionNumber  Int       @default(1)
   changeSummary  String?

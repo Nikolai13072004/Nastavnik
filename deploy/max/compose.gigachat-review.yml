@@ -1,0 +1,21 @@
+# Local/isolated review only. The API key is passed privately, not built into an image.
+services:
+  vedomo-api:
+    environment:
+      LLM_MODE: gigachat
+      GIGACHAT_AUTH_KEY: ${GIGACHAT_AUTH_KEY:?Set the private review key}
+      GIGACHAT_SCOPE: ${GIGACHAT_SCOPE:?Set the scope granted to the key}
+      GIGACHAT_MODEL: ${GIGACHAT_MODEL:?Set a model available to the key}
+      GIGACHAT_MODEL_FALLBACKS: ""
+      GIGACHAT_VERIFY_SSL: "true"
+      GIGACHAT_CA_BUNDLE: /run/certs/gigachat-ca.pem
+    volumes:
+      - type: bind
+        source: ${REVIEW_GIGACHAT_CA:?Select a trusted PEM bundle}
+        target: /run/certs/gigachat-ca.pem
+        read_only: true
+        bind: {create_host_path: false}
+    networks: [backend, review_egress]
+
+networks:
+  review_egress: {}

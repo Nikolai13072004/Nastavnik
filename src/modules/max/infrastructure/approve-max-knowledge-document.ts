@@ -62,7 +62,7 @@ export async function approveMaxKnowledgeDocument(
       .update(course.publishedSnapshotJson).digest("hex");
     if (authorization && publishedSnapshotHash !== authorization.publishedSnapshotHash) return "CONFLICT";
     if (!document.approvedAt || document.revokedAt) return "NOT_APPROVED";
-    if (!/\.(txt|md)$/i.test(document.sourceName)) return "UNSUPPORTED_FORMAT";
+    if (!/\.(txt|md|pdf)$/i.test(document.sourceName)) return "UNSUPPORTED_FORMAT";
     if (document.contentHash !== input.vedomoDocumentHash ||
         createHash("sha256").update(document.contentText).digest("hex") !== input.vedomoDocumentHash) {
       return "HASH_MISMATCH";

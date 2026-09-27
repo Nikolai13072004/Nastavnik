@@ -35,6 +35,7 @@ export type ChatCourse = {
     questionCount: number;
     chatSupported: boolean;
     maxAttempts: number;
+    repeatable?: boolean;
     attemptsUsed: number;
     status: string;
     bestCorrectAnswers: number;

@@ -243,7 +243,7 @@ test("an old panel cannot recover revoked courses or an unlinked profile", async
   assert.equal(f.state()?.quiz, undefined);
   f.unlink();
   const unlinked = await f.flow(callback(panel, "Прогресс"));
-  assert.match(unlinked.text!, /Сначала свяжите профиль/);
+  assert.match(unlinked.text!, /Как начать обучение/);
   assert.deepEqual(f.counts(), { starts: 0, submits: 0, asks: 0 });
 });
 
@@ -319,7 +319,7 @@ test("revoked course and unlinked profile cannot reuse quiz or AI buttons", asyn
   assert.equal(f.counts().submits, 0);
   f.unlink();
   const reply = await f.flow(text("Вопрос по документу"));
-  assert.match(reply.text!, /Сначала свяжите профиль/);
+  assert.match(reply.text!, /Как начать обучение/);
   assert.equal(f.state(), null);
   assert.equal(f.counts().asks, 0);
 });
@@ -548,4 +548,49 @@ test("test-list navigation never submits prepared answers and has no duplicate r
   assert.match(returned.text!, /Выберите тест/);
   assert.deepEqual(f.state()?.quiz?.answers, { q1: 0, q2: 1 });
   assert.deepEqual(f.counts(), { starts: 1, submits: 0, asks: 0 });
+});
+
+test("menu aliases and help expose navigation and preserve a paused quiz", async () => {
+  const f = fixture();
+  const first = await begin(f);
+  await f.flow(callback(first, "1"));
+  for (const command of ["Меню", "/menu", "/start", "/courses", "/help"]) {
+    const menu = await f.flow(text(command));
+    assert.match(menu.text!, /Меню|меню/);
+    assert.ok(callback(menu, "Первый день"));
+    assert.deepEqual(f.state()?.quiz?.answers, { q1: 0 });
+  }
+  assert.equal(f.counts().starts, 1);
+});
+
+test("unlinked users receive the code issuer and exact first-entry steps", async () => {
+  const f = fixture();
+  f.unlink();
+  const result = await f.flow(text("/start"));
+  assert.match(result.text!, /HR или руководителя/);
+  assert.match(result.text!, /администратор/);
+  assert.match(result.text!, /не в чат/);
+  assert.match(result.text!, /Меню/);
+  assert.equal(result.buttons?.flat()[0].type, "open_app");
+  assert.equal(f.counts().starts, 0);
+});
+
+test("passed repeatable quizzes stay available and can resume even beyond their original limit", async () => {
+  const f = fixture();
+  f.learning.course = async () => ({
+    ...course,
+    quizzes: [{ ...course.quizzes[0], status: "PASSED", attemptsUsed: 10, repeatable: true }],
+  });
+  const panel = await select(f);
+  const list = await f.flow(callback(panel, "Пройти тест"));
+  const confirmation = await f.flow(callback(list, "Проверка"));
+  assert.match(confirmation.text!, /без ограничений/);
+  const first = await f.flow(callback(confirmation, "Начать или продолжить"));
+  const paused = await f.flow(callback(first, "Продолжить позже"));
+  const resumed = await f.flow(callback(paused, "Продолжить: Проверка"));
+  assert.match(resumed.text!, /Вопрос 1 из 2/);
+  const second = await f.flow(callback(resumed, "1"));
+  const result = await f.flow(callback(second, "1"));
+  assert.match(result.text!, /Тест пройден/);
+  assert.deepEqual(f.counts(), { starts: 1, submits: 1, asks: 0 });
 });

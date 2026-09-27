@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 import { hash } from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
+import { storage } from "../src/lib/storage";
+import { createMaxSessionCodec } from "../src/modules/max/infrastructure/learner-session";
 import { approveMaxKnowledgeDocument } from "../src/modules/max/infrastructure/approve-max-knowledge-document";
 import { createVedomoClient } from "../src/modules/max/infrastructure/vedomo-client";
 import { onboardingCourseId, onboardingDocumentId } from "../src/modules/max/infrastructure/provision-onboarding-course";
@@ -50,6 +52,87 @@ async function checkCredentialsLogin(db: PrismaClient) {
   }
 }
 
+async function checkPublishedDocumentImport(db: PrismaClient) {
+  const actorId = `max-import-review-${randomUUID()}`;
+  const title = `Local import check ${randomUUID()}`;
+  const organizationId = "max-pilot-demo-org";
+  let documentId: string | undefined;
+  let originalKey: string | null = null;
+  await db.user.create({ data: {
+    id: actorId, login: actorId, name: "Local document import", role: "HR", status: "ACTIVE",
+    organizationId, passwordHash: "disabled",
+  } });
+  try {
+    const link = await db.maxAccountLink.create({ data: {
+      maxUserId: actorId, userId: actorId, organizationId,
+    } });
+    const token = createMaxSessionCodec(process.env.MAX_BOT_TOKEN!).issue({
+      maxUserId: actorId, userId: actorId, organizationId, linkedAt: link.createdAt.toISOString(),
+    }).token;
+    async function request(path: string, method: string, body: object, expected: number) {
+      await delay(350);
+      const response = await fetch(`https://joint-gateway:8443${path}`, {
+        method,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body), redirect: "error", signal: AbortSignal.timeout(20_000),
+      });
+      assert.equal(response.status, expected, `${method} ${path}: unexpected HTTP status`);
+      return response.json();
+    }
+    const contentText = `# ${title}\n\nПеред запуском учебного устройства Q750 проверяют защитный кожух.\n`;
+    await request("/api/max/documents", "POST", {
+      courseId: onboardingCourseId, title, sourceName: "import-review.md", contentText,
+    }, 201);
+    const document = await db.maxCourseDocument.findFirstOrThrow({
+      where: { courseId: onboardingCourseId, title, uploadedById: actorId },
+    });
+    documentId = document.id;
+    originalKey = document.originalKey;
+    const input = { courseId: onboardingCourseId, documentId };
+    assert.equal((await request("/api/max/documents/knowledge", "POST", input, 404)).status, "NOT_FOUND");
+    await request("/api/max/documents", "PUT", { ...input, publish: true }, 200);
+    assert.equal((await request("/api/max/documents/knowledge", "POST", input, 202)).status, "PROCESSING");
+    let approved = false;
+    for (let attempt = 0; attempt < 45; attempt += 1) {
+      await delay(3000);
+      const response = await fetch("https://joint-gateway:8443/api/max/documents/knowledge", {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(input), signal: AbortSignal.timeout(20_000), redirect: "error",
+      });
+      assert.ok(response.status === 200 || response.status === 202, "Indexing must succeed without a retry");
+      const result = await response.json();
+      if (result.status === "APPROVED") {
+        approved = true;
+        break;
+      }
+      assert.equal(result.status, "PROCESSING");
+    }
+    assert.equal(approved, true, "Real document indexing must finish within the review timeout");
+    const mapping = await db.maxKnowledgeDocument.findFirstOrThrow({ where: { courseDocumentId: documentId } });
+    assert.equal(mapping.vedomoDocumentHash, document.contentHash);
+    const client = createVedomoClient(process.env.MAX_VEDOMO_ORIGIN!, process.env.MAX_VEDOMO_SERVICE_TOKEN!);
+    const source = await client.findDocument(organizationId, onboardingCourseId, document.contentHash);
+    assert.equal(source?.documentId, mapping.vedomoDocumentId);
+    assert.equal((await request("/api/max/documents/knowledge", "POST", input, 200)).status, "APPROVED");
+    assert.equal(await db.maxKnowledgeDocument.count({ where: { courseDocumentId: documentId } }), 1);
+    await request("/api/max/documents", "PUT", { ...input, publish: false }, 200);
+    assert.equal((await request("/api/max/documents/knowledge", "POST", input, 404)).status, "NOT_FOUND");
+    assert.ok((await db.maxCourseDocument.findUniqueOrThrow({ where: { id: documentId } })).revokedAt);
+    console.log("HR document: upload, draft denial, publication, real indexing, exact hash, repeat and revocation passed.");
+  } finally {
+    if (documentId) {
+      await db.maxKnowledgeDocument.deleteMany({ where: { courseDocumentId: documentId } });
+      await db.maxCourseDocument.delete({ where: { id: documentId } });
+      if (originalKey && await db.maxCourseDocument.count({ where: { originalKey } }) === 0) {
+        await storage.delete("uploads", originalKey);
+        await db.storageFile.deleteMany({ where: { key: originalKey } });
+      }
+    }
+    await db.auditLogEvent.deleteMany({ where: { actorId } });
+    await db.user.delete({ where: { id: actorId } });
+  }
+}
+
 async function main() {
   const database = new URL(process.env.DATABASE_URL ?? "");
   const botToken = process.env.MAX_BOT_TOKEN ?? "";
@@ -83,6 +166,9 @@ async function main() {
       vedomoDocumentId: source.documentId, vedomoDocumentHash: source.documentHash,
     }), "APPROVED");
     await checkCredentialsLogin(db);
+    if (process.env.MAX_VEDOMO_IMPORT_ENABLED === "true") {
+      await checkPublishedDocumentImport(db);
+    }
   } finally {
     await db.$disconnect();
   }

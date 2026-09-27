@@ -70,3 +70,22 @@ test("retry delay is enforced from server time", () => {
     (error: unknown) => error instanceof AssessmentDomainError && error.code === "RETRY_DELAY",
   );
 });
+
+test("practice permits passed, exhausted and immediate retries but still blocks manual review", () => {
+  const args = {
+    completedAttempts: [attempt({ outcome: "PASSED" }), attempt()],
+    maxAttempts: 1,
+    retryDelayMinutes: 30,
+    now: new Date("2026-08-13T10:06:00Z"),
+    practice: true,
+  };
+  assert.doesNotThrow(() => assertAttemptAvailable(args));
+  assert.throws(
+    () => assertAttemptAvailable({ ...args, practice: false }),
+    (error: unknown) => error instanceof AssessmentDomainError && error.code === "ALREADY_PASSED",
+  );
+  assert.throws(
+    () => assertAttemptAvailable({ ...args, completedAttempts: [attempt({ outcome: "PENDING_REVIEW" })] }),
+    (error: unknown) => error instanceof AssessmentDomainError && error.code === "PENDING_REVIEW",
+  );
+});

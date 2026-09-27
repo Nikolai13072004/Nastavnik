@@ -22,7 +22,7 @@ def main() -> None:
             f"REVIEW_JWT_SECRET={secrets.token_hex(32)}\n"
             f"REVIEW_SERVICE_TOKEN={secrets.token_urlsafe(48)}\n"
             f"REVIEW_FAKE_BOT_TOKEN=local-review-{secrets.token_hex(32)}\n"
-            "REVIEW_PRODIGY_IMAGE=prodigy-max:chat-navigation-20260927\n"
+            "REVIEW_PRODIGY_IMAGE=prodigy-max:tester-ready-v2-20260927\n"
             "REVIEW_VEDOMO_IMAGE=vedomo-backend:max-knowledge-20260926\n"
             "REVIEW_MODEL_VOLUME=vedomo-max-local-models\n"
         )

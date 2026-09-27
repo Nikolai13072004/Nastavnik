@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import styles from "./max.module.css";
 import { MaxDocumentText } from "./max-document-text";
+import { MaxDocumentDownload } from "./max-document-download";
 import { readableDocumentText } from "@/lib/document-text";
 
 type Source = {
@@ -17,6 +18,8 @@ type SourceDocument = {
   title: string;
   versionNumber: number;
   contentText: string;
+  sourceName: string;
+  hasOriginal: boolean;
 };
 
 export function MaxCourseKnowledge({
@@ -226,6 +229,8 @@ export function MaxCourseKnowledge({
           <h5>{sourceDocument.title}</h5>
           <p>Редакция {sourceDocument.versionNumber}</p>
           <MaxDocumentText text={sourceDocument.contentText} />
+          {sourceDocument.hasOriginal && <MaxDocumentDownload key={sourceDocument.id} courseId={courseId}
+            documentId={sourceDocument.id} sourceName={sourceDocument.sourceName} token={token} onRenew={onRenew} />}
           <div className={styles.documentActions}>
             <button
               type="button"

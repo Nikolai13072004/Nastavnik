@@ -30,6 +30,7 @@ export const prismaKnowledgeConnection: KnowledgeConnectionRepository = {
     return {
       sourceName: document.sourceName,
       contentHash: document.contentHash,
+      contentText: document.contentText,
       publishedSnapshotHash: createHash("sha256").update(document.course.publishedSnapshotJson).digest("hex"),
     };
   },

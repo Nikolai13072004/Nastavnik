@@ -12,6 +12,7 @@ export type MaxQuizSummary = {
   attemptsUsed: number;
   status: string;
   bestCorrectAnswers: number;
+  repeatable?: boolean;
 };
 
 type Question = { id: string; prompt: string; options: string[] };
@@ -88,17 +89,19 @@ export function MaxQuiz({ token, courseId, quiz, onResult }: {
   }
 
   const passed = quiz.status === "PASSED";
-  const exhausted = quiz.attemptsUsed >= quiz.maxAttempts;
+  const exhausted = !quiz.repeatable && quiz.attemptsUsed >= quiz.maxAttempts;
 
   return <section className={styles.quiz} aria-label={quiz.title}>
     <h4>{quiz.title}</h4>
     {quiz.description && <p>{quiz.description}</p>}
     {state.kind === "idle" && <>
       <p>{passed ? `Сдано: ${quiz.bestCorrectAnswers} из ${quiz.questionCount} верно.`
+        : quiz.repeatable ? `Вопросов: ${quiz.questionCount}. Тренировочный тест можно повторять без ограничений.`
         : exhausted ? "Попытки закончились."
         : `Вопросов: ${quiz.questionCount} · попыток осталось: ${quiz.maxAttempts - quiz.attemptsUsed}`}</p>
-      {!passed && !exhausted && <button type="button" className={styles.retry} disabled={busy}
-        onClick={() => void start()}>{busy ? "Открываем…" : "Начать тест"}</button>}
+      {passed && quiz.repeatable && <p>Можно пройти ещё раз. Лучший результат сохранится.</p>}
+      {(!passed || quiz.repeatable) && !exhausted && <button type="button" className={styles.retry} disabled={busy}
+        onClick={() => void start()}>{busy ? "Открываем…" : passed ? "Пройти ещё раз" : "Начать тест"}</button>}
     </>}
     {state.kind === "answering" && <>
       {state.questions.map((question, index) => <fieldset key={question.id} className={styles.quizQuestion}>
@@ -118,7 +121,8 @@ export function MaxQuiz({ token, courseId, quiz, onResult }: {
     </>}
     {state.kind === "result" && <>
       <p role="status">{state.result.outcome === "PASSED" ? "Тест сдан" : "Тест не сдан"} · верно {state.result.correctAnswers} из {state.result.totalQuestions}.</p>
-      {state.result.outcome === "FAILED" && quiz.attemptsUsed < quiz.maxAttempts &&
+      {quiz.repeatable && <p>Лучший результат сохраняется. Количество повторов не ограничено.</p>}
+      {(quiz.repeatable || (state.result.outcome === "FAILED" && quiz.attemptsUsed < quiz.maxAttempts)) &&
         <button type="button" className={styles.retry} disabled={busy} onClick={() => void start()}>Повторить тест</button>}
     </>}
     {error && <p role="alert">{error}</p>}

@@ -1,0 +1,7 @@
+services:
+  web:
+    image: prodigy-max:ui-integration-20260927
+    environment:
+      MAX_DESIGN_PREVIEW: "false"
+  migrate:
+    image: prodigy-max:ui-integration-20260927

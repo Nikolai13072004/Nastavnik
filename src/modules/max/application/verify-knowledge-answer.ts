@@ -11,7 +11,13 @@ export type KnowledgeSource = {
 
 export type KnowledgeAnswer = { answer: string; refused: boolean; sources: KnowledgeSource[] };
 
-export type AuthorizedDocument = { id: string; contentHash: string; contentText: string; courseDocumentId?: string };
+export type AuthorizedDocument = {
+  id: string;
+  contentHash: string;
+  contentText: string;
+  courseDocumentId?: string;
+  title?: string;
+};
 
 function normalizePassage(text: string): string {
   return text
@@ -53,6 +59,7 @@ export function verifyKnowledgeAnswer(answer: KnowledgeAnswer, allowedDocuments:
       delete verifiedSource.courseDocumentId;
       const document = allowed.get(source.documentId)!;
       if (document.courseDocumentId) verifiedSource.courseDocumentId = document.courseDocumentId;
+      if (document.title?.trim()) verifiedSource.title = document.title;
       return verifiedSource;
     }),
   };

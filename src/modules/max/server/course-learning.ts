@@ -9,7 +9,7 @@ import { issueCertificateIfCompleted } from "@/modules/certification/server/issu
 import type { MaxLearnerIdentity } from "../application/list-courses";
 import { createListMaxCourses } from "../application/list-courses";
 import { prismaMaxLearnerRepository } from "../infrastructure/prisma-max-learner-repository";
-import { isSupportedMaxQuiz, isShortChatQuiz, toMaxQuizQuestions } from "../application/quiz-delivery";
+import { isDemoPracticeQuiz, isSupportedMaxQuiz, isShortChatQuiz, toMaxQuizQuestions } from "../application/quiz-delivery";
 
 const listCourses = createListMaxCourses(prismaMaxLearnerRepository);
 
@@ -80,6 +80,8 @@ export async function getMaxCourse(identity: MaxLearnerIdentity, courseId: strin
           questionCount: quiz.questions.length,
           chatSupported: isShortChatQuiz(toMaxQuizQuestions(quiz.questions) ?? []),
           maxAttempts: quiz.maxAttempts,
+          repeatable: isDemoPracticeQuiz(process.env.MAX_DEMO_REPEAT_ENABLED === "true",
+            identity.organizationId, courseId, quiz.id),
           attemptsUsed: result?.attemptsUsed ?? 0,
           status: result?.status ?? "NOT_STARTED",
           bestCorrectAnswers: result?.bestCorrectAnswers ?? 0,

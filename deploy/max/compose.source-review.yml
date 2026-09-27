@@ -1,0 +1,76 @@
+# Local source launch only. Use a separate project and a bounded buildx builder.
+# Prepare the pinned model cache before launch; this overlay does not download it.
+services:
+  web:
+    environment:
+      MAX_VEDOMO_IMPORT_ENABLED: "true"
+
+  vedomo-api:
+    environment:
+      PRODIGY_DOCUMENT_IMPORT_ENABLED: "true"
+    build:
+      context: ../../../vedomo
+      dockerfile: Dockerfile.max-pilot
+
+  review-tls:
+    build:
+      context: ../../../vedomo
+      dockerfile: Dockerfile.max-pilot
+
+  review-index:
+    extends:
+      file: compose.joint-review.yml
+      service: vedomo-api
+    build:
+      context: ../../../vedomo
+      dockerfile: Dockerfile.max-pilot
+    entrypoint: ["python", "/run/setup-joint-review.py"]
+    healthcheck:
+      disable: true
+    depends_on:
+      vedomo-api: {condition: service_healthy}
+    restart: "no"
+
+  review-check:
+    extends:
+      file: compose.review.yml
+      service: web
+    image: ${REVIEW_PRODIGY_IMAGE:?Select a separate source image tag}
+    environment:
+      MAX_JOINT_REVIEW: "true"
+      MAX_DEMO_REPEAT_ENABLED: "true"
+      GOMAXPROCS: "2"
+      RAYON_NUM_THREADS: "2"
+      TOKIO_WORKER_THREADS: "2"
+      UV_THREADPOOL_SIZE: "2"
+      APP_BASE_URL: https://joint-gateway:8443
+      MAX_BOT_TOKEN: ${REVIEW_FAKE_BOT_TOKEN:?Create the joint review environment}
+      MAX_VEDOMO_ENABLED: "true"
+      MAX_VEDOMO_IMPORT_ENABLED: "true"
+      MAX_VEDOMO_COURSE_ID: max-pilot-onboarding-course
+      MAX_VEDOMO_ORIGIN: https://joint-gateway:8443
+      MAX_VEDOMO_SERVICE_TOKEN: ${REVIEW_SERVICE_TOKEN:?Create the joint review environment}
+      NODE_EXTRA_CA_CERTS: /run/trust/ca.pem
+    volumes:
+      - review_trust:/run/trust:ro
+      - ../../scripts/joint-review-smoke.ts:/app/scripts/joint-review-smoke.ts:ro
+      - ../../docs/drafts/onboarding-policy.md:/run/onboarding-policy.md:ro
+    entrypoint: ["node", "node_modules/tsx/dist/cli.mjs", "scripts/joint-review-smoke.ts"]
+    healthcheck:
+      disable: true
+    depends_on:
+      web: {condition: service_healthy}
+      joint-gateway: {condition: service_started}
+      review-index: {condition: service_completed_successfully}
+    restart: "no"
+
+  review-ready:
+    image: nginx:stable-alpine
+    entrypoint: ["/bin/sh", "-c", "echo REVIEW_READY"]
+    network_mode: none
+    mem_limit: 32m
+    cpus: 0.1
+    pids_limit: 8
+    depends_on:
+      review-check: {condition: service_completed_successfully}
+    restart: "no"

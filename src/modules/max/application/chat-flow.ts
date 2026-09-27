@@ -28,7 +28,7 @@ export function createChatFlow(deps: {
     if (!identity || !courses) {
       await deps.sessions.clear(maxUserId);
       return {
-        text: "Сначала свяжите профиль: получите свой код у HR и введите его в приложении. Код в чат не отправляйте.",
+        text: "Как начать обучение:\n1. Попросите личный код у HR или руководителя. Для проверки стенда код выдаёт его администратор.\n2. Нажмите «Связать профиль» и введите код там, не в чат.\n3. После привязки напишите «Меню» или /start: появятся курсы и действия.",
         buttons: [
           [
             {
@@ -116,14 +116,19 @@ export function createChatFlow(deps: {
       index = parts.length === 4 ? Number(parts[3]) : -1;
     } else {
       const command = input.text.toLowerCase().replace(/^\//, "").trim();
+      if (["помощь", "help"].includes(command)) {
+        return {
+          ...(await menu()),
+          text: "Выберите курс кнопкой ниже. В чате доступны вопросы AI, прогресс и короткие тесты. Для чтения материалов нажмите «Материалы и документы» в меню курса.\n\nМеню можно открыть в любой момент: отправьте «Меню», «Курсы» или /start. Незавершённый тест сохранится. Код привязки вводится только в мини-приложении, не в чате.",
+        };
+      }
       if (
         [
           "курсы",
           "меню",
           "start",
           "courses",
-          "помощь",
-          "help",
+          "menu",
           "отмена",
           "cancel",
         ].includes(command)
@@ -181,7 +186,7 @@ export function createChatFlow(deps: {
         const course = await deps.learning.course(identity, courseId);
         if (
           course.quizzes.some(
-            (quiz) => quiz.id === currentQuiz.id && quiz.status === "PASSED",
+            (quiz) => quiz.id === currentQuiz.id && quiz.status === "PASSED" && !quiz.repeatable,
           )
         ) {
           delete state.quiz;
@@ -282,7 +287,7 @@ export function createChatFlow(deps: {
       if (action === "tests" || action === "testpage") {
         const course = await deps.learning.course(identity, courseId);
         const quizzes = course.quizzes.filter(
-          (quiz) => quiz.chatSupported && quiz.status !== "PASSED",
+          (quiz) => quiz.chatSupported && (quiz.status !== "PASSED" || quiz.repeatable),
         );
         const page = action === "testpage" ? index : (state.quizPage ?? 0);
         const validPage =
@@ -331,7 +336,9 @@ export function createChatFlow(deps: {
           return { notification: "Тест недоступен. Обновите меню." };
         await save();
         return {
-          text: `${quiz.title.slice(0, 180)}\nВопросов: ${quiz.questionCount}. Попыток использовано: ${quiz.attemptsUsed} из ${quiz.maxAttempts}.\n\nНовая попытка учитывается сразу после начала. Незавершённая попытка будет продолжена, а не создана заново.${state.quiz && state.quiz.id !== quiz.id ? " Черновик ответов другого теста в чате будет заменён." : ""}`,
+          text: `${quiz.title.slice(0, 180)}\nВопросов: ${quiz.questionCount}. ${quiz.repeatable
+            ? "Тренировочный тест: повторять можно без ограничений, даже после сдачи. Лучший результат сохраняется."
+            : `Попыток использовано: ${quiz.attemptsUsed} из ${quiz.maxAttempts}.`}\n\nНезавершённая попытка будет продолжена, а не создана заново.${state.quiz && state.quiz.id !== quiz.id ? " Черновик ответов другого теста в чате будет заменён." : ""}`,
           buttons: [
             [chatButton(state, "Начать или продолжить", "start", index)],
             [chatButton(state, "Назад", "tests")],
@@ -345,7 +352,7 @@ export function createChatFlow(deps: {
         );
         if (!quiz?.chatSupported)
           return { notification: "Тест недоступен. Обновите меню." };
-        if (quiz.status === "PASSED") {
+        if (quiz.status === "PASSED" && !quiz.repeatable) {
           if (currentQuiz?.id === quiz.id) delete state.quiz;
           await save();
           return {

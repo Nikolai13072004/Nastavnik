@@ -68,3 +68,14 @@ test("multiple source links keep their own file mappings", () => {
   ]);
   assert.deepEqual(result.sources.map((source) => source.courseDocumentId), ["file-1", "file-2"]);
 });
+
+test("source labels use the HR document title rather than the technical index filename", () => {
+  const indexed = { ...answer, sources: [{ ...answer.sources[0], title: "max-sha256-source.txt" }] };
+  const result = verifyKnowledgeAnswer(indexed, [{
+    id: "doc-1", contentHash: "version-2", contentText: answer.sources[0].snippet,
+    title: "Первый день сотрудника", courseDocumentId: "local-document",
+  }]);
+  assert.equal(result.sources[0].title, "Первый день сотрудника");
+  assert.equal(result.sources[0].courseDocumentId, "local-document");
+  assert.equal(indexed.sources[0].title, "max-sha256-source.txt");
+});

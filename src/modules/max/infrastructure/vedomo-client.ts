@@ -65,6 +65,45 @@ export function createVedomoClient(origin: string, token: string, fetcher: typeo
   }
 
   return {
+    async importDocument(organizationId: string, courseId: string, document: {
+      sourceName: string; contentText: string; contentHash: string; retry: boolean;
+    }) {
+      if (!/^[A-Za-z0-9_-]{1,128}$/.test(organizationId) ||
+          !/^[A-Za-z0-9_-]{1,128}$/.test(courseId) || !/^[a-f0-9]{64}$/.test(document.contentHash) ||
+          !document.contentText.trim() || Buffer.byteLength(document.contentText) > 32 * 1024 ||
+          !/^[^/\\\x00-\x1f]{1,180}\.(txt|md)$/i.test(document.sourceName)) {
+        throw new VedomoClientError("configuration");
+      }
+      const body = JSON.stringify({ source_name: document.sourceName, content_text: document.contentText,
+        content_hash: document.contentHash, retry: document.retry });
+      if (Buffer.byteLength(body) > 64 * 1024) throw new VedomoClientError("configuration");
+      try {
+        const response = await fetcher(`${new URL(endpoint).origin}/api/integrations/prodigy/documents/import`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json",
+            "X-Prodigy-Organization-ID": organizationId, "X-Prodigy-Course-ID": courseId },
+          body,
+          signal: AbortSignal.timeout(10_000),
+          redirect: "error",
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          await response.body?.cancel().catch(() => undefined);
+          throw new VedomoClientError("http", response.status);
+        }
+        const data = await readResponse(response);
+        if (!isObject(data) || !["READY", "PROCESSING", "BUSY", "ERROR"].includes(String(data.status)) ||
+            data.document_hash !== document.contentHash ||
+            (data.status === "READY" && (typeof data.document_id !== "string" ||
+              !/^[A-Za-z0-9_-]{1,128}$/.test(data.document_id)))) throw new VedomoClientError("response");
+        return { status: data.status as "READY" | "PROCESSING" | "BUSY" | "ERROR",
+          documentId: typeof data.document_id === "string" ? data.document_id : undefined,
+          documentHash: document.contentHash };
+      } catch (error) {
+        if (error instanceof VedomoClientError) throw error;
+        throw new VedomoClientError(error instanceof SyntaxError ? "response" : "transport");
+      }
+    },
     async findDocument(organizationId: string, courseId: string, documentHash: string) {
       if (!/^[A-Za-z0-9_-]{1,128}$/.test(organizationId) ||
           !/^[A-Za-z0-9_-]{1,128}$/.test(courseId) || !/^[a-f0-9]{64}$/.test(documentHash)) {
@@ -139,9 +178,11 @@ export function createVedomoClient(origin: string, token: string, fetcher: typeo
         throw new VedomoClientError("transport");
       }
     },
-    async ask(organizationId: string, courseId: string, question: string): Promise<KnowledgeAnswer> {
+    async ask(organizationId: string, courseId: string, question: string, documentIds?: string[]): Promise<KnowledgeAnswer> {
       if (!/^[A-Za-z0-9_-]{1,128}$/.test(organizationId) || !/^[A-Za-z0-9_-]{1,128}$/.test(courseId) ||
-          question.trim().length < 3 || question.length > 500) {
+          question.trim().length < 3 || question.length > 500 || (documentIds !== undefined &&
+            (!documentIds.length || documentIds.length > 40 ||
+              documentIds.some((id) => !/^[A-Za-z0-9_-]{1,128}$/.test(id))))) {
         throw new VedomoClientError("configuration");
       }
       let response: Response;
@@ -154,7 +195,7 @@ export function createVedomoClient(origin: string, token: string, fetcher: typeo
             "X-Prodigy-Course-ID": courseId,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ question: question.trim() }),
+          body: JSON.stringify({ question: question.trim(), ...(documentIds ? { document_ids: documentIds } : {}) }),
           signal: AbortSignal.timeout(110_000),
           redirect: "error",
           cache: "no-store",

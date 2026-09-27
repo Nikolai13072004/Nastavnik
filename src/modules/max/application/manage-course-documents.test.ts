@@ -14,10 +14,16 @@ test("validates text documents before any persistence call", async () => {
   const manage = createManageMaxDocuments(commands);
 
   assert.equal(await manage.upload(identity, { ...valid, sourceName: "rules.docx" }), "INVALID_INPUT");
+  assert.equal(await manage.upload(identity, { ...valid, sourceName: "../rules.md" }), "INVALID_INPUT");
+  assert.equal(await manage.upload(identity, { ...valid, sourceName: "rules\n.md" }), "INVALID_INPUT");
   assert.equal(await manage.upload(identity, { ...valid, contentText: "  " }), "INVALID_INPUT");
   assert.equal(await manage.upload(identity, { ...valid, contentText: "x".repeat(32 * 1024 + 1) }), "INVALID_INPUT");
   assert.equal(await manage.upload(identity, { ...valid, contentText: "bad\0text" }), "INVALID_INPUT");
   assert.equal(await manage.upload(identity, { ...valid, contentText: "bad\uFFFDtext" }), "INVALID_INPUT");
+  assert.equal(await manage.upload(identity, { ...valid, originalBytes: Buffer.alloc(0) }), "INVALID_INPUT");
+  assert.equal(await manage.upload(identity, { ...valid, originalBytes: Buffer.alloc(32 * 1024 + 1) }), "INVALID_INPUT");
+  assert.equal(await manage.upload(identity, { ...valid, sourceName: "rules.pdf",
+    originalBytes: Buffer.alloc(512 * 1024 + 1) }), "INVALID_INPUT");
   assert.equal(await manage.setPublished(identity, "", "doc", true), "INVALID_INPUT");
   assert.equal(await manage.upload(identity, { ...valid, supersedesId: "previous" }), "INVALID_INPUT");
   assert.equal(await manage.upload(identity, { ...valid, changeSummary: "Without a prior document" }), "INVALID_INPUT");

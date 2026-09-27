@@ -8,6 +8,7 @@ import { MaxCourseSearch } from "./max-course-search";
 import { MaxCourseKnowledge } from "./max-course-knowledge";
 import { MaxCourseDocuments } from "./max-course-documents";
 import { MaxManagerReport } from "./max-manager-report";
+import { DEMO_COURSES, DEMO_COURSE_DETAILS } from "./max-demo-data";
 
 type CourseState =
   | { kind: "loading" }
@@ -24,11 +25,22 @@ type CourseDetail = {
   hasUnsupportedItems: boolean;
 };
 
-export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCourseId, onRenew }: {
+function demoCourse(courseId: string): CourseDetail | null {
+  const source = DEMO_COURSE_DETAILS[courseId as keyof typeof DEMO_COURSE_DETAILS];
+  if (!source) return null;
+  return {
+    ...source,
+    materials: source.materials.map((material) => ({ ...material })),
+    quizzes: source.quizzes.map((quiz) => ({ ...quiz })),
+  };
+}
+
+export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCourseId, designPreview = false, onRenew }: {
   token: string;
   managerAccess: boolean;
   knowledgeCourseId?: string;
   initialCourseId?: string;
+  designPreview?: boolean;
   onRenew: () => void;
 }) {
   const [state, setState] = useState<CourseState>({ kind: "loading" });
@@ -41,6 +53,11 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCou
   const handledLaunch = useRef<string | undefined>(undefined);
 
   useEffect(() => {
+    if (designPreview) {
+      setState({ kind: "ready", courses: DEMO_COURSES.map((course) => ({ ...course })) });
+      if (initialCourseId) setDetail(demoCourse(initialCourseId));
+      return;
+    }
     const controller = new AbortController();
     let active = true;
     const timeout = window.setTimeout(() => controller.abort(), 10_000);
@@ -93,9 +110,15 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCou
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [token, refreshKey, initialCourseId]);
+  }, [token, refreshKey, initialCourseId, designPreview]);
 
   async function openCourse(courseId: string) {
+    if (designPreview) {
+      setDetail(demoCourse(courseId));
+      setConfirmMaterialId(null);
+      setDetailMessage("");
+      return;
+    }
     setBusy(true);
     setDetailMessage("");
     try {
@@ -115,7 +138,7 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCou
   }
 
   async function completeMaterial(materialId: string) {
-    if (!detail) return;
+    if (!detail || designPreview) return;
     setBusy(true);
     setDetailMessage("");
     try {
@@ -140,6 +163,7 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCou
   }
 
   async function refreshCompletion(courseId: string) {
+    if (designPreview) return;
     try {
       const response = await fetch(`/api/max/course?courseId=${encodeURIComponent(courseId)}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -167,13 +191,15 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCou
         }}>К моим курсам</button>
         <h3>{detail.title}</h3>
         {detail.completed && <p className={styles.courseCompletion} role="status">
-          Курс завершён. Результат сохранён в Prodigy.
+          {designPreview ? "Пример завершённого курса." : "Курс завершён. Результат сохранён в Prodigy."}
         </p>}
         {detail.description && <p>{detail.description}</p>}
         {detail.materials.map((material) => <article key={material.id} className={styles.material}>
           <h4>{material.title}</h4>
           {material.content && <div className={styles.materialContent} dangerouslySetInnerHTML={{ __html: material.content }} />}
-          {material.completed ? <p className={styles.materialStatus}>Изучено. Материал можно перечитать в любое время.</p>
+          {designPreview ? <p className={styles.materialStatus}>
+            {material.completed ? "Пример изученного материала." : "Отметки о прохождении доступны в MAX."}
+          </p> : material.completed ? <p className={styles.materialStatus}>Изучено. Материал можно перечитать в любое время.</p>
             : confirmMaterialId === material.id ? <div className={styles.documentConfirm} aria-live="polite">
               <p>Вы прочитали материал? Подтверждение сохранит отметку о прохождении.</p>
               <button type="button" className={styles.retry} disabled={busy}
@@ -183,6 +209,23 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCou
             </div> : <button type="button" className={styles.retry} disabled={busy}
               onClick={() => setConfirmMaterialId(material.id)}>Отметить как изученное</button>}
         </article>)}
+        {designPreview ? <>
+          <section className={styles.courseSearch} aria-label="Демо рабочих инструкций">
+            <h4>Рабочие инструкции</h4>
+            <p>Документы компании и поиск по базе знаний доступны в MAX. Здесь показан только дизайн.</p>
+            <button type="button" className={styles.retry} disabled>Открыть инструкции</button>
+          </section>
+          {detail.quizzes.map((quiz) => <section key={quiz.id} className={styles.quiz} aria-label={quiz.title}>
+            <h4>{quiz.title}</h4>
+            {quiz.description && <p>{quiz.description}</p>}
+            <p>{quiz.status === "PASSED" ? `Сдано: ${quiz.bestCorrectAnswers} из ${quiz.questionCount} верно.`
+              : `Вопросов: ${quiz.questionCount}. Попыток осталось: ${quiz.maxAttempts - quiz.attemptsUsed}.`}</p>
+            {quiz.status !== "PASSED" && <>
+              <p>Для прохождения теста откройте приложение из MAX.</p>
+              <button type="button" className={styles.retry} disabled>Начать тест</button>
+            </>}
+          </section>)}
+        </> : <>
         <MaxCourseDocuments key={`documents:${detail.id}`} courseId={detail.id} token={token} onRenew={onRenew} />
         {knowledgeCourseId === detail.id
           ? <MaxCourseKnowledge key={`knowledge:${detail.id}`} courseId={detail.id} token={token} onRenew={onRenew} />
@@ -193,13 +236,14 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCou
               ...current,
               quizzes: current.quizzes.map((item) => item.id === quiz.id ? {
                 ...item,
-                status: result.outcome,
+                status: item.status === "PASSED" ? "PASSED" : result.outcome,
                 attemptsUsed: item.attemptsUsed + 1,
                 bestCorrectAnswers: Math.max(item.bestCorrectAnswers, result.correctAnswers),
               } : item),
             });
             if (result.outcome === "PASSED") void refreshCompletion(detail.id);
           }} />)}
+        </>}
         {detail.hasUnsupportedItems && <p>Некоторые форматы материалов или тестов пока не доступны в мини-приложении.</p>}
       </div> : state.kind === "ready" && (state.courses.length === 0
         ? <p>Сейчас нет доступных курсов. Новые назначения появятся здесь после публикации и назначения в LMS.</p>
@@ -213,6 +257,10 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCou
       {detailMessage && <p role="alert">{detailMessage}</p>}
       {!detail && <>
         <button type="button" className={styles.back} disabled={state.kind === "loading" || busy} onClick={() => {
+          if (designPreview) {
+            setRefreshMessage("Показаны вымышленные данные для просмотра дизайна.");
+            return;
+          }
           if (state.kind === "error") { onRenew(); return; }
           setRefreshMessage("");
           setState({ kind: "loading" });
@@ -220,7 +268,7 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCou
         }}>{state.kind === "loading" ? "Загружаем курсы..." : state.kind === "error" ? "Повторить вход" : "Проверить новые курсы"}</button>
         {refreshMessage && <p role="status">{refreshMessage}</p>}
       </>}
-      {managerAccess && <MaxManagerReport token={token} onRenew={onRenew} />}
+      {managerAccess && !designPreview && <MaxManagerReport token={token} onRenew={onRenew} />}
     </section>
   );
 }

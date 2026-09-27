@@ -1,4 +1,4 @@
-# Local integration check. Select together with compose.review.yml, never on the VPS.
+# Isolated integration check. Never select with the live pilot compose files.
 name: prodigy-max-joint-review
 
 services:
@@ -9,12 +9,14 @@ services:
     image: ${REVIEW_PRODIGY_IMAGE:?Build the review image first}
     environment:
       MAX_JOINT_REVIEW: "true"
+      MAX_DEMO_REPEAT_ENABLED: "true"
       GOMAXPROCS: "2"
       RAYON_NUM_THREADS: "2"
       UV_THREADPOOL_SIZE: "2"
       APP_BASE_URL: https://joint-gateway:8443
       MAX_BOT_TOKEN: ${REVIEW_FAKE_BOT_TOKEN:?Create the joint review environment}
       MAX_VEDOMO_ENABLED: "true"
+      MAX_VEDOMO_IMPORT_ENABLED: ${REVIEW_DOCUMENT_IMPORT_ENABLED:-false}
       MAX_VEDOMO_COURSE_ID: max-pilot-onboarding-course
       MAX_VEDOMO_ORIGIN: https://joint-gateway:8443
       MAX_VEDOMO_SERVICE_TOKEN: ${REVIEW_SERVICE_TOKEN:?Create the joint review environment}
@@ -22,6 +24,7 @@ services:
     volumes:
       - review_trust:/run/trust:ro
       - ../../scripts/joint-review-smoke.ts:/app/scripts/joint-review-smoke.ts:ro
+      - ../../scripts/joint-review-ai-smoke.ts:/app/scripts/joint-review-ai-smoke.ts:ro
       - ../../docs/drafts/onboarding-policy.md:/run/onboarding-policy.md:ro
     depends_on:
       migrate: {condition: service_completed_successfully}
@@ -73,7 +76,7 @@ services:
       LLM_MODE: ollama
       OLLAMA_URL: http://127.0.0.1:11434/api/generate
       OLLAMA_MODEL: review-generation-disabled
-      EMBEDDING_MODEL: BAAI/bge-m3
+      EMBEDDING_MODEL: /models/hub/models--BAAI--bge-m3/snapshots/5617a9f61b028005a4858fdac845db406aefb181
       USE_RERANKER: "false"
       HF_HUB_OFFLINE: "1"
       TRANSFORMERS_OFFLINE: "1"

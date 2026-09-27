@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isSupportedMaxQuiz, toMaxQuizQuestions, validateMaxQuizAnswers } from "./quiz-delivery";
+import { isDemoPracticeQuiz, isSupportedMaxQuiz, toMaxQuizQuestions, validateMaxQuizAnswers } from "./quiz-delivery";
+
+test("unlimited practice is opt-in and confined to the exact synthetic pilot quiz", () => {
+  const organization = "max-pilot-demo-org";
+  const course = "max-pilot-onboarding-course";
+  const quiz = "max-pilot-onboarding-quiz";
+  assert.equal(isDemoPracticeQuiz(true, organization, course, quiz), true);
+  assert.equal(isDemoPracticeQuiz(false, organization, course, quiz), false);
+  assert.equal(isDemoPracticeQuiz(true, "real-company", course, quiz), false);
+  assert.equal(isDemoPracticeQuiz(true, organization, "work-course", quiz), false);
+  assert.equal(isDemoPracticeQuiz(true, organization, course, "work-quiz"), false);
+});
 
 const question = {
   id: "q1", orderIndex: 0, type: "SINGLE_CHOICE", prompt: "Кто утверждает?",

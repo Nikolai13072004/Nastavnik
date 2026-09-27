@@ -179,6 +179,15 @@ export function MaxManagerReport({ token, onRenew }: { token: string; onRenew: (
       {open ? "Скрыть раздел HR" : "Открыть раздел HR"}
     </button>
     {open && <>
+      {assignment?.canCreate && <details className={styles.launchHelp}>
+        <summary>Как подключить сотрудника</summary>
+        <ol>
+          <li>Добавьте сотрудника ниже. Для уже созданного профиля выберите «Новый код для существующего сотрудника».</li>
+          <li>Выберите курс и сотрудника в разделе «Назначить курс». Привязка сама по себе не назначает обучение.</li>
+          <li>Передайте личный код сотруднику. Он открывает бота в MAX, нажимает «Открыть» и вводит код в мини-приложении.</li>
+        </ol>
+        <p>Код действует 15 минут. Сотрудник не регистрируется самостоятельно и не получает права HR. Результаты появятся в отчёте после прохождения.</p>
+      </details>}
       {busy && <p role="status">Загружаем результаты…</p>}
       {message && <p role="alert">{message} <button type="button" className={styles.back} onClick={onRenew}>Проверить вход</button></p>}
       {assignment?.canCreate && <form className={styles.reportAssignment} onSubmit={(event) => void addEmployee(event)}>

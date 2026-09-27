@@ -71,3 +71,16 @@ test("malformed JSON and upstream failures never expose service secrets", async 
   assert.equal(response.status, 503);
   assert.deepEqual(await response.json(), { error: "TEMPORARILY_UNAVAILABLE" });
 });
+
+test("returns pending without approving a partial index and accepts explicit retry only", async () => {
+  const response = await handleKnowledgeConnection(request({ ...input, retry: true }), botToken, true,
+    async (...args) => {
+      assert.deepEqual(args, [identity, "course-1", "document-1", true]);
+      return "PROCESSING";
+    });
+  assert.equal(response.status, 202);
+  assert.deepEqual(await response.json(), { status: "PROCESSING" });
+  const invalid = await handleKnowledgeConnection(request({ ...input, retry: "yes" }), botToken, true,
+    async () => { throw new Error("must not connect"); });
+  assert.equal(invalid.status, 400);
+});

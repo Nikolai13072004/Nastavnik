@@ -70,7 +70,7 @@ test("knowledge sources require an approved document in the same organization an
 
   assert.deepEqual(
     await prismaMaxKnowledgeDocuments.listApproved(organizationId, courseId, snapshotHash),
-    [{ id: "vedomo-own", contentHash: ownHash, contentText: own.contentText, courseDocumentId: own.id }],
+    [{ id: "vedomo-own", contentHash: ownHash, contentText: own.contentText, courseDocumentId: own.id, title: own.title }],
   );
   assert.deepEqual(await prismaMaxKnowledgeDocuments.listApproved(organizationId, courseId, "old-snapshot"), []);
 
