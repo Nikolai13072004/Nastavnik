@@ -3,13 +3,15 @@
 Prodigy хранит сотрудников, курсы и результаты. Здесь также находятся бот,
 Mini App и HR-экраны MAX. [Vedomo](https://github.com/clapzy2/effective-business-max-vedomo/tree/feature/max-review)
 отвечает за AI по утверждённым документам; для приватного репозитория нужен доступ.
-PR #2 слит. Последние исправления проходят проверку в `feature/max-foundation`
-и пока не отправлены в GitHub.
+PR #2 слит. Последние исправления отправлены в `feature/max-foundation` через
+PR #3; автоматические проверки прошли. Это ещё не зафиксированная конкурсная версия.
 
 Для проверки найдите `@se14424319_bot` в MAX и откройте Mini App.
 [Сценарий и ожидаемые результаты](docs/MAX_DEMO.md),
+[гайд для жюри](docs/contest/JURY_GUIDE.md), [проверка обучения и HR](docs/MAX_TESTING.md),
 [полный roadmap](docs/MAX_CONTEST_ROADMAP.md), [статус](docs/MAX_STATUS.md).
 [Пакет API и учебные данные](docs/contest/README.md).
+[Docker-запуск, зависимости и остановка](docs/contest/START.md).
 Новый тестовый профиль связывается одноразовым кодом от администратора стенда.
 Обычная ссылка в браузере не заменяет вход через MAX.
 
