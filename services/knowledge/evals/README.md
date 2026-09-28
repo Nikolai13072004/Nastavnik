@@ -72,6 +72,10 @@ skips cases without `expected_context` (normally refusal cases). It cannot prove
 answer quality, refusals or TTFT. Its report name ends in `-retrieval` so it is
 not confused with the complete run.
 
+Add `--all-files` to search every material in the test workspace instead of
+selecting the case's named file. The report name includes `all-files` so the
+two search modes cannot be mistaken for one another.
+
 ### Corporate product-training set
 
 `datasets/corporate-product-training.json` contains 25 synthetic questions over
