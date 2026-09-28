@@ -1,5 +1,5 @@
 schema_version: '1.0'
-solution: Prodigy MAX
+solution: Наставник
 base_url: https://prodigy-max.45-139-78-17.sslip.io/api/max
 openapi: openapi.json
 test_data: test-data.json

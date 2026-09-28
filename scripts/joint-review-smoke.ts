@@ -58,11 +58,13 @@ async function checkPublishedDocumentImport(db: PrismaClient) {
   const organizationId = "max-pilot-demo-org";
   let documentId: string | undefined;
   let originalKey: string | null = null;
+  let stage = "create review account";
   await db.user.create({ data: {
     id: actorId, login: actorId, name: "Local document import", role: "HR", status: "ACTIVE",
     organizationId, passwordHash: "disabled",
   } });
   try {
+    stage = "link review account";
     const link = await db.maxAccountLink.create({ data: {
       maxUserId: actorId, userId: actorId, organizationId,
     } });
@@ -80,6 +82,7 @@ async function checkPublishedDocumentImport(db: PrismaClient) {
       return response.json();
     }
     const contentText = `# ${title}\n\nПеред запуском учебного устройства Q750 проверяют защитный кожух.\n`;
+    stage = "upload document";
     await request("/api/max/documents", "POST", {
       courseId: onboardingCourseId, title, sourceName: "import-review.md", contentText,
     }, 201);
@@ -89,10 +92,14 @@ async function checkPublishedDocumentImport(db: PrismaClient) {
     documentId = document.id;
     originalKey = document.originalKey;
     const input = { courseId: onboardingCourseId, documentId };
+    stage = "deny draft import";
     assert.equal((await request("/api/max/documents/knowledge", "POST", input, 404)).status, "NOT_FOUND");
+    stage = "publish document";
     await request("/api/max/documents", "PUT", { ...input, publish: true }, 200);
+    stage = "start indexing";
     assert.equal((await request("/api/max/documents/knowledge", "POST", input, 202)).status, "PROCESSING");
     let approved = false;
+    stage = "wait for indexing";
     for (let attempt = 0; attempt < 45; attempt += 1) {
       await delay(3000);
       const response = await fetch("https://joint-gateway:8443/api/max/documents/knowledge", {
@@ -108,17 +115,24 @@ async function checkPublishedDocumentImport(db: PrismaClient) {
       assert.equal(result.status, "PROCESSING");
     }
     assert.equal(approved, true, "Real document indexing must finish within the review timeout");
+    stage = "verify source mapping";
     const mapping = await db.maxKnowledgeDocument.findFirstOrThrow({ where: { courseDocumentId: documentId } });
     assert.equal(mapping.vedomoDocumentHash, document.contentHash);
     const client = createVedomoClient(process.env.MAX_VEDOMO_ORIGIN!, process.env.MAX_VEDOMO_SERVICE_TOKEN!);
     const source = await client.findDocument(organizationId, onboardingCourseId, document.contentHash);
     assert.equal(source?.documentId, mapping.vedomoDocumentId);
+    stage = "verify repeat import";
     assert.equal((await request("/api/max/documents/knowledge", "POST", input, 200)).status, "APPROVED");
     assert.equal(await db.maxKnowledgeDocument.count({ where: { courseDocumentId: documentId } }), 1);
+    stage = "revoke publication";
     await request("/api/max/documents", "PUT", { ...input, publish: false }, 200);
     assert.equal((await request("/api/max/documents/knowledge", "POST", input, 404)).status, "NOT_FOUND");
     assert.ok((await db.maxCourseDocument.findUniqueOrThrow({ where: { id: documentId } })).revokedAt);
     console.log("HR document: upload, draft denial, publication, real indexing, exact hash, repeat and revocation passed.");
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "unknown error";
+    console.error(`HR document review failed at ${stage}: ${detail}`);
+    throw error;
   } finally {
     if (documentId) {
       await db.maxKnowledgeDocument.deleteMany({ where: { courseDocumentId: documentId } });

@@ -41,7 +41,7 @@ export async function getMaxCourse(identity: MaxLearnerIdentity, courseId: strin
   const textItems = snapshot.items.filter((item) => item.type === "TEXT");
   const supportedQuizzes = snapshot.items.filter((item) => item.type === "QUIZ" && item.quiz &&
     isSupportedMaxQuiz(item.quiz, snapshot.resultViewMode));
-  const [views, bestResults, certificate] = await Promise.all([
+  const [views, bestResults, certificate, plan] = await Promise.all([
     prisma.courseItemView.findMany({
       where: { userId: identity.userId, courseItemId: { in: textItems.map((item) => item.id) } },
       select: { courseItemId: true, progressPercent: true },
@@ -54,6 +54,9 @@ export async function getMaxCourse(identity: MaxLearnerIdentity, courseId: strin
       where: { courseId_userId: { courseId, userId: identity.userId } },
       select: { status: true },
     }),
+    prisma.maxStudyPlan.findUnique({
+      where: { courseId_userId: { courseId, userId: identity.userId } }, select: { dueAt: true },
+    }),
   ]);
   const progressByItem = new Map(views.map((view) => [view.courseItemId, view.progressPercent]));
   const resultByQuiz = new Map(bestResults.map((result) => [result.quizId, result]));
@@ -64,6 +67,7 @@ export async function getMaxCourse(identity: MaxLearnerIdentity, courseId: strin
       title: snapshot.title,
       description: snapshot.description,
       completed: certificate?.status === "ISSUED",
+      dueAt: plan?.dueAt?.toISOString() ?? null,
       materials: textItems.map((item) => ({
         id: item.id,
         title: item.title,

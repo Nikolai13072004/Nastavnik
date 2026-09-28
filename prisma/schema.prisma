@@ -61,7 +61,9 @@ model User {
   certificates             Certificate[]              @relation("CertificateOwner")
   issuedCertificates       Certificate[]              @relation("CertificateIssuedBy")
   revokedCertificates      Certificate[]              @relation("CertificateRevokedBy")
-  maxDocumentTrainings      MaxDocumentTraining[]
+  maxDocumentTrainings     MaxDocumentTraining[]
+  maxStudyPlans            MaxStudyPlan[]
+  maxAiEvents              MaxAiEvent[]
 
   @@index([departmentId])
   @@index([organizationId])
@@ -158,6 +160,8 @@ model Organization {
   maxKnowledgeDocuments MaxKnowledgeDocument[]
   maxCourseDocuments    MaxCourseDocument[]
   maxDocumentTrainings  MaxDocumentTraining[]
+  maxStudyPlans         MaxStudyPlan[]
+  maxAiEvents           MaxAiEvent[]
 }
 
 model GroupMembership {
@@ -220,6 +224,8 @@ model Course {
   maxKnowledgeDocuments MaxKnowledgeDocument[]
   maxCourseDocuments    MaxCourseDocument[]
   maxDocumentTrainings  MaxDocumentTraining[]
+  maxStudyPlans         MaxStudyPlan[]
+  maxAiEvents           MaxAiEvent[]
 
   // Обратный поиск владельца файла по URL обложки/миниатюры при авторизации
   // выдачи `/uploads/*` (src/lib/storage/upload-access.ts).
@@ -254,27 +260,27 @@ model MaxKnowledgeDocument {
 
 // Originals are private and require MAX session and course access.
 model MaxCourseDocument {
-  id             String    @id @default(cuid())
-  organizationId String
-  courseId       String
-  title          String
-  sourceName     String
-  contentText    String
-  contentHash    String
-  originalKey    String?
-  originalHash   String?
-  originalSize   Int?
-  supersedesId   String?   @unique
-  versionNumber  Int       @default(1)
-  changeSummary  String?
-  checkQuestion  String?
-  checkOptionsJson String?
+  id                String    @id @default(cuid())
+  organizationId    String
+  courseId          String
+  title             String
+  sourceName        String
+  contentText       String
+  contentHash       String
+  originalKey       String?
+  originalHash      String?
+  originalSize      Int?
+  supersedesId      String?   @unique
+  versionNumber     Int       @default(1)
+  changeSummary     String?
+  checkQuestion     String?
+  checkOptionsJson  String?
   checkCorrectIndex Int?
-  uploadedById   String
-  approvedById   String?
-  approvedAt     DateTime?
-  revokedAt      DateTime?
-  createdAt      DateTime  @default(now())
+  uploadedById      String
+  approvedById      String?
+  approvedAt        DateTime?
+  revokedAt         DateTime?
+  createdAt         DateTime  @default(now())
 
   organization       Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   course             Course                 @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -1018,10 +1024,60 @@ model MaxBotDelivery {
   errorCode           String?
   chatInputCiphertext String?
   chatInputExpiresAt  DateTime?
+  studyPlanId         String?
 
   @@index([botUsername, status, createdAt])
   @@index([botUsername, finishedAt])
   @@index([botUsername, maxUserId, createdAt])
+}
+
+model MaxStudyPlan {
+  id               String       @id @default(cuid())
+  organizationId   String
+  courseId         String
+  userId           String
+  dueAt            DateTime?
+  remindersEnabled Boolean      @default(false)
+  updatedAt        DateTime     @updatedAt
+  course           Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, userId])
+  @@index([organizationId, remindersEnabled, dueAt])
+}
+
+model MaxAiEvent {
+  id             String         @id @default(cuid())
+  organizationId String
+  courseId       String
+  userId         String
+  outcome        String
+  durationMs     Int
+  sourceCount    Int            @default(0)
+  payloadHash    String?
+  createdAt      DateTime       @default(now())
+  course         Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feedback       MaxAiFeedback?
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, courseId, createdAt])
+}
+
+model MaxAiFeedback {
+  eventId       String     @id
+  question      String
+  answer        String
+  sourcesJson   String
+  reason        String
+  comment       String?
+  verdict       String     @default("PENDING")
+  reviewComment String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  createdAt     DateTime   @default(now())
+  event         MaxAiEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }
 
 model MaxChatSession {

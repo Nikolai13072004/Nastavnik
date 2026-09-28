@@ -4,7 +4,7 @@ const RESPONSE_LIMIT = 64 * 1024;
 
 export class VedomoClientError extends Error {
   constructor(readonly code: "configuration" | "transport" | "http" | "response", readonly status?: number) {
-    super(`Vedomo API: ${code}${status === undefined ? "" : ` (${status})`}`);
+    super(`Knowledge API: ${code}${status === undefined ? "" : ` (${status})`}`);
     this.name = "VedomoClientError";
   }
 }

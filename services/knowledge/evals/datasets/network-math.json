@@ -1,0 +1,43 @@
+{
+  "name": "network-math",
+  "description": "Реальный корпус (учебники): сети по Таненбауму и операционное исчисление по Краснову. expected_context проверяет, что нашёлся нужный файл; expected_keywords - что ответ называет термин. Запускать против проиндексированного пространства: python -m evals.run_eval --dataset evals/datasets/network-math.json --workspace-id <id> --no-ingest",
+  "materials": [],
+  "cases": [
+    {
+      "id": "tcp",
+      "question": "Что такое TCP?",
+      "expected_keywords": ["TCP"],
+      "expected_context": ["Tanenbaum_Endryu_Kompyuternye_Seti_5-E_Izdanie.pdf"]
+    },
+    {
+      "id": "dns",
+      "question": "Что такое DNS?",
+      "expected_keywords": ["DNS"],
+      "expected_context": ["Tanenbaum_Endryu_Kompyuternye_Seti_5-E_Izdanie.pdf"]
+    },
+    {
+      "id": "mac-address",
+      "question": "Что такое MAC-адрес?",
+      "expected_keywords": ["MAC"],
+      "expected_context": ["Tanenbaum_Endryu_Kompyuternye_Seti_5-E_Izdanie.pdf"]
+    },
+    {
+      "id": "laplace-transform",
+      "question": "Что такое преобразование Лапласа?",
+      "expected_keywords": ["Лаплас"],
+      "expected_context": ["Krasnov M.L. _Zadachi i reshenija - Operacionnoe ischislenie, 2003, 178s.pdf"]
+    },
+    {
+      "id": "original-and-image",
+      "question": "Что такое оригинал и изображение?",
+      "expected_keywords": ["оригинал", "изображени"],
+      "expected_context": ["Krasnov M.L. _Zadachi i reshenija - Operacionnoe ischislenie, 2003, 178s.pdf"]
+    },
+    {
+      "id": "delay-theorem",
+      "question": "Что такое теорема запаздывания?",
+      "expected_keywords": ["запаздыван"],
+      "expected_context": ["Krasnov M.L. _Zadachi i reshenija - Operacionnoe ischislenie, 2003, 178s.pdf"]
+    }
+  ]
+}

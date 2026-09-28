@@ -9,12 +9,12 @@ services:
     environment:
       PRODIGY_DOCUMENT_IMPORT_ENABLED: "true"
     build:
-      context: ../../../vedomo
+      context: ../../services/knowledge
       dockerfile: Dockerfile.max-pilot
 
   review-tls:
     build:
-      context: ../../../vedomo
+      context: ../../services/knowledge
       dockerfile: Dockerfile.max-pilot
 
   review-index:
@@ -22,7 +22,7 @@ services:
       file: compose.joint-review.yml
       service: vedomo-api
     build:
-      context: ../../../vedomo
+      context: ../../services/knowledge
       dockerfile: Dockerfile.max-pilot
     entrypoint: ["python", "/run/setup-joint-review.py"]
     healthcheck:

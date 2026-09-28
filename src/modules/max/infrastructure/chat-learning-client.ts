@@ -46,6 +46,10 @@ export function createChatLearningClient(botToken: string, origin: string, fetch
     }
   }
   return {
+    async report(identity, courseId, question, result) {
+      await request(identity, "/api/max/ai-feedback", { courseId, eventId: result.eventId, question, result,
+        reason: "WRONG_ANSWER", comment: "Сообщение из чата MAX", consent: true });
+    },
     async course(identity, courseId) {
       return (await request(identity, `/api/max/course?courseId=${encodeURIComponent(courseId)}`)).course;
     },

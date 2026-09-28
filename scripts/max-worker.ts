@@ -17,6 +17,7 @@ import { createChatLearningClient } from "../src/modules/max/infrastructure/chat
 import { createPrismaChatSessions } from "../src/modules/max/infrastructure/prisma-chat-session-repository";
 import { retryBotClaim } from "../src/modules/max/infrastructure/retry-bot-claim";
 import { Prisma } from "@prisma/client";
+import { activeMaxStudyReminder, enqueueMaxStudyReminders } from "../src/modules/max/infrastructure/prisma-study-reminders";
 
 config({ quiet: true });
 
@@ -79,6 +80,7 @@ async function main() {
 
   let stopping = false;
   let lastIdleLog = 0;
+  let lastReminderScan = 0;
   process.once("SIGINT", () => {
     stopping = true;
   });
@@ -86,6 +88,12 @@ async function main() {
     stopping = true;
   });
   do {
+    if (Date.now() - lastReminderScan >= 60000) {
+      lastReminderScan = Date.now();
+      await enqueueMaxStudyReminders(username).catch(() => {
+        console.warn("MAX study reminder scan unavailable.");
+      });
+    }
     const processingStarted = performance.now();
     const result = await deliverNextBotMessage(
       repository,
@@ -101,6 +109,11 @@ async function main() {
         return input.type === "callback"
           ? client.answerCallback(input.callbackId, input.messageId, reply)
           : client.sendChat(Number(job.maxUserId), username, reply);
+      },
+      async (job) => {
+        const plan = job.studyPlanId ? await activeMaxStudyReminder(prisma, job.studyPlanId, job.maxUserId, new Date()) : null;
+        if (!plan?.dueAt) throw new Error("Study reminder is no longer valid");
+        return client.sendStudyReminder(Number(job.maxUserId), username, plan.course.title, plan.dueAt);
       },
     );
     if (result !== "idle") {

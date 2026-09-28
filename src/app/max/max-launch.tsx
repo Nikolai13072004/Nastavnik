@@ -103,7 +103,7 @@ export function MaxLaunch({ showLmsLinks = false, knowledgeCourseId, botUsername
   }, [designPreview]);
 
   if (!mounted) {
-    return <main className={styles.boot} aria-label="Загрузка Prodigy"><span className={styles.brandMark}>P</span></main>;
+    return <main className={styles.boot} aria-label="Загрузка Наставника"><span className={styles.brandMark}>Н</span></main>;
   }
 
   const status = state.kind === "loading"
@@ -124,8 +124,8 @@ export function MaxLaunch({ showLmsLinks = false, knowledgeCourseId, botUsername
         onError={() => setState({ kind: "error", message: "Не удалось подключиться к MAX. Проверьте соединение и откройте приложение повторно." })} />}
       <header className={styles.header}>
         <div className={styles.brandLockup}>
-          <span className={styles.brandMark} aria-hidden>P</span>
-          <span className={styles.brand}>Prodigy <small>Обучение в MAX</small></span>
+          <span className={styles.brandMark} aria-hidden>Н</span>
+          <span className={styles.brand}>Наставник <small>Обучение в MAX</small></span>
         </div>
         <span className={styles.preview}>{designPreview ? "Просмотр дизайна" : "MAX Mini App"}</span>
       </header>

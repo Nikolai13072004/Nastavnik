@@ -1,0 +1,64 @@
+{
+  "name": "history",
+  "description": "Корпус по истории науки/техники и связи (учебные пособия СПбГУТ: Комиссарова + Островский). Ингестит PDF + DOCX во временный воркспейс. .doc (Лыченкова) не включён - формат не поддерживается. Последний кейс намеренно вне корпуса (expect_refusal).",
+  "materials": [
+    "../../docs/Комиссарова_Т_С_,_Мосеев_В_И_,_Цыгоняева_А_Ю_История_науки_и_техники.pdf",
+    "../../docs/Ostrovskii-Istoriyamir.iotech.svyazi-2011.docx"
+  ],
+  "cases": [
+    {
+      "id": "subject-of-history-sci-tech",
+      "question": "Что изучает история науки и техники?",
+      "expected_keywords": ["наук", "техник"],
+      "expected_context": ["техник"]
+    },
+    {
+      "id": "first-information-revolution",
+      "question": "Что считается первой информационной революцией в истории техники?",
+      "expected_keywords": ["язык"],
+      "expected_context": ["информацион"]
+    },
+    {
+      "id": "science-tech-relation",
+      "question": "Как связаны между собой наука и техника?",
+      "answer_mode": "Подробно",
+      "expected_keywords": ["наук", "техник"],
+      "expected_context": ["техник"]
+    },
+    {
+      "id": "pearl-harbor-example",
+      "question": "Какой пример с опозданием телеграммы (Пёрл-Харбор) приводится во введении?",
+      "expected_keywords": ["телеграмм"],
+      "expected_context": ["Пирл-Харбор"]
+    },
+    {
+      "id": "postal-communication",
+      "question": "Какую роль играла почта в истории связи?",
+      "expected_keywords": ["почт"],
+      "expected_context": ["почт"]
+    },
+    {
+      "id": "morse-telegraph",
+      "question": "Кто создал телеграфную азбуку (код Морзе)?",
+      "expected_keywords": ["Морзе"],
+      "expected_context": ["Морзе"]
+    },
+    {
+      "id": "bell-telephone",
+      "question": "Кто изобрёл телефон?",
+      "expected_keywords": ["Белл"],
+      "expected_context": ["Белл"]
+    },
+    {
+      "id": "popov-radio",
+      "question": "Кто в России считается изобретателем радио?",
+      "expected_keywords": ["Попов"],
+      "expected_context": ["Попов"]
+    },
+    {
+      "id": "offtopic-borscht",
+      "question": "Как приготовить борщ?",
+      "expect_refusal": true
+    }
+  ]
+}

@@ -182,6 +182,19 @@ export function createChatFlow(deps: {
     const currentQuiz =
       state.quiz?.courseId === courseId ? state.quiz : undefined;
     try {
+      if (action === "report" && state.aiFeedback && deps.learning.report) {
+        await save();
+        return {
+          text: "Передать HR этот вопрос, ответ AI и источники для проверки? Остальная переписка не передаётся.",
+          buttons: [[chatButton(state, "Передать HR", "reportconfirm"), chatButton(state, "Отмена", "back")]],
+        };
+      }
+      if (action === "reportconfirm" && state.aiFeedback && deps.learning.report) {
+        await deps.learning.report(identity, courseId, state.aiFeedback.question, state.aiFeedback.result);
+        delete state.aiFeedback;
+        await save();
+        return { text: "Сообщение передано HR для проверки.", buttons: actions() };
+      }
       if (currentQuiz && action === "resume") {
         const course = await deps.learning.course(identity, courseId);
         if (
@@ -422,6 +435,7 @@ export function createChatFlow(deps: {
         state.aiRequestedAt = [...recent, Date.now()];
         await save();
         const answer = await deps.learning.ask(identity, courseId, input.text);
+        state.aiFeedback = answer.eventId ? { question: input.text, result: answer } : undefined;
         const current = await deps.access.courses(identity);
         if (!current?.some((item) => item.id === courseId)) return menu();
         const linkedSources = answer.sources
@@ -440,6 +454,7 @@ export function createChatFlow(deps: {
         return {
           text: `${readableDocumentText(answer.answer).slice(0, 2000)}${sources ? `\n\n${sources}` : ""}`,
           buttons: [
+            ...(state.aiFeedback && deps.learning.report ? [[chatButton(state, "Ответ AI неверный", "report")]] : []),
             ...state.documentIds.map((_, position) => [
               chatButton(
                 state,

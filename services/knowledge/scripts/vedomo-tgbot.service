@@ -1,0 +1,27 @@
+# systemd unit for the Vedomo Telegram ops bot (scripts/tg_bot.py).
+#
+# Install on the VPS:
+#   cp /opt/vedomo/scripts/vedomo-tgbot.service /etc/systemd/system/
+#   systemctl daemon-reload
+#   systemctl enable --now vedomo-tgbot
+#   systemctl status vedomo-tgbot      # should be "active (running)"
+#   journalctl -u vedomo-tgbot -f      # live logs
+#
+# Reads ALERT_TELEGRAM_BOT_TOKEN / ALERT_TELEGRAM_CHAT_ID from the same root-only
+# secrets file the cron stragers use. Runs as root so it can reach docker.
+
+[Unit]
+Description=Vedomo Telegram ops bot
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/vedomo
+EnvironmentFile=/opt/vedomo/.alert.env
+ExecStart=/usr/bin/python3 /opt/vedomo/scripts/tg_bot.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

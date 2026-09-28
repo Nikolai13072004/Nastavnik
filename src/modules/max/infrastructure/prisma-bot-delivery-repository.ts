@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import type { BotDeliveryRepository } from "../application/bot-delivery";
 import { resolveEnrollmentAccess } from "@/modules/enrollment/domain/enrollment-access";
 import { createChatInputCodec } from "./chat-input-codec";
+import { activeMaxStudyReminder } from "./prisma-study-reminders";
 
 export const prismaBotDeliveryRepository: BotDeliveryRepository = {
   async enqueue(botUsername, event) {
@@ -73,8 +74,23 @@ export const prismaBotDeliveryRepository: BotDeliveryRepository = {
         orderBy: [{ createdAt: "asc" }, { eventKey: "asc" }],
       });
       if (!job) return null;
-      if (job.kind !== "WELCOME" && job.kind !== "DOCUMENT_REVISION" && job.kind !== "HELP" && job.kind !== "CHAT") {
+      if (job.kind !== "WELCOME" && job.kind !== "DOCUMENT_REVISION" && job.kind !== "HELP" && job.kind !== "CHAT" && job.kind !== "STUDY_REMINDER") {
         throw new Error("Unknown MAX delivery kind");
+      }
+      if (job.kind === "STUDY_REMINDER") {
+        const plan = job.studyPlanId ? await activeMaxStudyReminder(tx, job.studyPlanId, job.maxUserId, clock.now) : null;
+        const recentlySent = job.studyPlanId ? await tx.maxBotDelivery.findFirst({
+          where: {
+            botUsername, studyPlanId: job.studyPlanId, kind: "STUDY_REMINDER",
+            status: { in: ["SENT", "UNCERTAIN"] },
+            finishedAt: { gte: new Date(clock.now.getTime() - 86400000) },
+          },
+          select: { eventKey: true },
+        }) : null;
+        if (!plan || recentlySent || plan.updatedAt > job.createdAt || job.createdAt < new Date(clock.now.getTime() - 86400000)) {
+          await tx.maxBotDelivery.update({ where: { eventKey: job.eventKey }, data: { status: "SKIPPED", finishedAt: clock.now } });
+          return null;
+        }
       }
       if (job.kind === "DOCUMENT_REVISION") {
         const training = job.documentId ? await tx.maxDocumentTraining.findFirst({
@@ -125,7 +141,7 @@ export const prismaBotDeliveryRepository: BotDeliveryRepository = {
         data: { status: "SENDING", startedAt: clock.now },
       });
       return { eventKey: job.eventKey, maxUserId: job.maxUserId,
-        kind: job.kind, documentId: job.documentId, chatInputCiphertext: job.chatInputCiphertext };
+        kind: job.kind, documentId: job.documentId, chatInputCiphertext: job.chatInputCiphertext, studyPlanId: job.studyPlanId };
     });
   },
 

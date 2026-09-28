@@ -270,11 +270,11 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
         } else if (result.status === "INDEXING_FAILED") {
           setMessage("Не удалось обработать источник. Повторите подключение позже. Сотрудникам документ доступен для чтения.");
         } else if (result.status === "SOURCE_NOT_READY") {
-          setMessage("В Vedomo пока нет готового источника с таким текстом. В «Проверить текст» скачайте текст для AI и передайте администратору для загрузки в Vedomo. После обработки повторите подключение.");
+          setMessage("Источник ещё не готов для поиска. В «Проверить текст» скачайте текст для AI и передайте администратору. После обработки повторите подключение.");
         } else if (result.status === "UNSUPPORTED_FORMAT") {
           setMessage("Для AI пока подходят .txt и .md. PDF можно читать в курсе, но подключить его этой кнопкой нельзя.");
         } else if (response.status === 409) {
-          setMessage("Документ или его подключение изменились. Обновите список. Если в Vedomo есть копии одного текста, администратор должен проверить источник.");
+          setMessage("Документ или его подключение изменились. Обновите список. Если проблема повторится, попросите администратора проверить источник.");
         } else {
           setMessage("Не удалось подключить источник. Проверьте доступ и повторите позже.");
         }
@@ -312,7 +312,7 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
     <p>Публикация открывает документ для чтения. {aiConnectionEnabled
       ? aiImportEnabled
         ? "После проверки и публикации нажмите «Подключить к AI». Проверенный текст передастся в поиск автоматически. Для PDF используется извлечённый текст, оригинал сохраняется отдельно."
-        : "В «Проверить текст» скачайте текст для AI и передайте администратору для загрузки в Vedomo. После обработки нажмите «Подключить к AI»."
+        : "В «Проверить текст» скачайте текст для AI и передайте администратору. После обработки нажмите «Подключить к AI»."
       : "AI для этого курса пока не настроен."}</p>
     <form onSubmit={(event) => void upload(event)}>
       <label className={styles.reportSelect}>Это новая редакция?
@@ -417,7 +417,7 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
       {preview.hasOriginal && <MaxDocumentDownload key={preview.id} courseId={courseId} manager
         documentId={preview.id} sourceName={preview.sourceName} token={token} onRenew={onRenew} />}
       {aiConnectionEnabled && !aiImportEnabled && /\.(txt|md)$/i.test(preview.sourceName) && <>
-        <p>Этот файл содержит проверяемый текст без изменений кодировки и переносов строк. Загрузите именно его в Vedomo.</p>
+        <p>Этот файл содержит проверяемый текст без изменений кодировки и переносов строк. Передайте администратору именно его.</p>
         <button type="button" className={styles.back} onClick={downloadPreparedText}>Скачать текст для AI</button>
       </>}
       <details>

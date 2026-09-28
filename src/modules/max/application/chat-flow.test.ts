@@ -156,6 +156,30 @@ async function begin(f: ReturnType<typeof fixture>) {
   return f.flow(callback(confirmation, "Начать или продолжить"));
 }
 
+test("AI feedback shares one answer only after consent and rejects stale confirmation", async () => {
+  const f = fixture();
+  const ask = f.learning.ask;
+  f.learning.ask = async (...args) => ({ ...await ask(...args), eventId: "receipt" });
+  const reports: string[] = [];
+  f.learning.report = async (_, __, question) => { reports.push(question); };
+  await select(f);
+  const answer = await f.flow(text("Как получить доступ?"));
+  const confirmation = await f.flow(callback(answer, "Ответ AI неверный"));
+  assert.match(confirmation.text!, /Остальная переписка не передаётся/);
+  assert.deepEqual(reports, []);
+  await f.flow(callback(confirmation, "Отмена"));
+  await f.flow(callback(confirmation, "Передать HR"));
+  assert.deepEqual(reports, []);
+  const nextAnswer = await f.flow(text("Как получить доступ?"));
+  const current = await f.flow(callback(nextAnswer, "Ответ AI неверный"));
+  const saved = await f.flow(callback(current, "Передать HR"));
+  assert.match(saved.text!, /передано HR/);
+  assert.deepEqual(reports, ["Как получить доступ?"]);
+  assert.equal(f.state()?.aiFeedback, undefined);
+  await f.flow(callback(current, "Передать HR"));
+  assert.equal(reports.length, 1);
+});
+
 test("chat menus select an assigned course without starting or submitting a test", async () => {
   const f = fixture();
   const panel = await select(f);

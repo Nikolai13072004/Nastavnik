@@ -1,0 +1,47 @@
+[
+  {
+    "id": "engineering",
+    "url": "https://ntrs.nasa.gov/api/citations/20170001761/downloads/20170001761.pdf",
+    "bytes": 4122125,
+    "pages": 356,
+    "sha256": "3153ae2e53e29452d5997efafe280a5f05cd21b43a047e988a17e1dd5207a38e",
+    "path": "engineering.pdf",
+    "retrieved_at": "2026-09-16T02:29:38+0300"
+  },
+  {
+    "id": "law",
+    "url": "https://www.uscourts.gov/sites/default/files/2025-02/federal-rules-of-evidence-dec-1-2024_0.pdf",
+    "bytes": 235118,
+    "pages": 44,
+    "sha256": "6d40b9dca62b1acb0d7e762473b6fad7779ef58b6cf19384575210af81a444ad",
+    "path": "law.pdf",
+    "retrieved_at": "2026-09-16T02:29:40+0300"
+  },
+  {
+    "id": "medicine",
+    "url": "https://www.nhlbi.nih.gov/sites/default/files/publications/Asthma-Action-Plan-2020_rev_508.pdf",
+    "bytes": 786743,
+    "pages": 2,
+    "sha256": "07ee97b0988376c025884fa52ff79aacf034051831106b76d5da7badd9a9cff3",
+    "path": "medicine.pdf",
+    "retrieved_at": "2026-09-16T02:29:41+0300"
+  },
+  {
+    "id": "math",
+    "url": "https://mathcentre.ac.uk/resources/uploaded/mc-ty-quadeqns-2009-1.pdf",
+    "bytes": 317044,
+    "pages": 9,
+    "sha256": "81dcdacfc8fb76e77df9a1c5bbd5f29c68e3856331a6583f7987a8113cc6e93f",
+    "path": "math.pdf",
+    "retrieved_at": "2026-09-16T02:29:42+0300"
+  },
+  {
+    "id": "safety",
+    "url": "https://www.cdc.gov/niosh/docs/2017-126/pdfs/2017-126.pdf",
+    "bytes": 1856439,
+    "pages": 2,
+    "sha256": "3755f7d83767313ca0d38fd1852993de302e5cc56999ee6472988fd4753b27e5",
+    "path": "safety.pdf",
+    "retrieved_at": "2026-09-16T02:30:30+0300"
+  }
+]

@@ -95,3 +95,7 @@ next-env.d.ts
 # Python helpers and their local bytecode cache.
 __pycache__/
 *.pyc
+
+# Third-party evaluation documents stay local; the manifest records their sources.
+/services/knowledge/evals/datasets/materials/real-world/*
+!/services/knowledge/evals/datasets/materials/real-world/manifest.json

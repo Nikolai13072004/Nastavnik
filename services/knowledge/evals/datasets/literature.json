@@ -1,0 +1,17 @@
+{
+  "name": "literature",
+  "description": "Реальный корпус (художественная литература): рассказ Андерсена и диалог Платона. Запускать против уже проиндексированного рабочего пространства: python -m evals.run_eval --dataset evals/datasets/literature.json --workspace-id <id> --no-ingest",
+  "materials": [],
+  "cases": [
+    {
+      "id": "match-girl-time",
+      "question": "Когда происходило действие в рассказе?",
+      "expected_context": ["The_Little_Match_Girl.txt"]
+    },
+    {
+      "id": "fedr-quotes",
+      "question": "Цитаты из Речи Федра",
+      "expected_context": ["pir.txt", "Речь Федра"]
+    }
+  ]
+}

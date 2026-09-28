@@ -3,7 +3,7 @@ import { connection } from "next/server";
 import { MaxLaunch } from "./max-launch";
 
 export const metadata: Metadata = {
-  title: "Обучение в MAX — Prodigy",
+  title: "Наставник - обучение в MAX",
   robots: { index: false, follow: false },
 };
 

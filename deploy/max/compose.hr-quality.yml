@@ -1,0 +1,7 @@
+services:
+  web:
+    image: prodigy-max:hr-quality-v2-20260928
+  worker:
+    image: prodigy-max:hr-quality-v2-20260928
+  migrate:
+    image: prodigy-max:hr-quality-v2-20260928

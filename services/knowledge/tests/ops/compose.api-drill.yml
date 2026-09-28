@@ -1,0 +1,58 @@
+# Current API integration drill, synthetic data only. No public ports/LLM keys.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: drill
+      POSTGRES_PASSWORD: synthetic-only
+      POSTGRES_DB: drill
+    volumes: ["pg:/var/lib/postgresql/data"]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U drill -d drill"]
+      interval: 2s
+      retries: 20
+  model-seed:
+    image: ${DRILL_BACKEND_IMAGE:-vedomo-readiness-backend:20260914}
+    entrypoint: [python, /drill.py, model]
+    environment:
+      VEDOMO_DRILL: synthetic-only
+      HF_HUB_OFFLINE: '1'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    volumes: ["models:/models", "./api_drill.py:/drill.py:ro"]
+  backend:
+    image: ${DRILL_BACKEND_IMAGE:-vedomo-readiness-backend:20260914}
+    environment:
+      VEDOMO_DRILL: synthetic-only
+      DATABASE_URL: postgresql+psycopg://drill:synthetic-only@db:5432/drill
+      JWT_SECRET_KEY: synthetic-drill-secret-not-for-production-20260914
+      AUTH_COOKIE_SECURE: 'false'
+      APP_BASE_URL: http://127.0.0.1:3101
+      EMAIL_BACKEND: memory
+      RATE_LIMIT_ENABLED: 'false'
+      QUOTAS_ENABLED: 'false'
+      EMBEDDING_MODEL: /models/drill-bow
+      USE_RERANKER: 'false'
+      LLM_MODE: api
+      API_KEY: synthetic-not-a-provider-key
+      GIGACHAT_AUTH_KEY: ''
+      HF_HUB_OFFLINE: '1'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      ANONYMIZED_TELEMETRY: 'false'
+    volumes:
+      - docs:/app/docs
+      - data:/app/data
+      - models:/models
+      - state:/drill-state
+      - ./api_drill.py:/drill.py:ro
+    depends_on:
+      db: {condition: service_healthy}
+      model-seed: {condition: service_completed_successfully}
+networks:
+  default:
+    internal: true
+volumes:
+  pg:
+  docs:
+  data:
+  models:
+  state:

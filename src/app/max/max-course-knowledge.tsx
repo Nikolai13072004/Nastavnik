@@ -5,14 +5,10 @@ import styles from "./max.module.css";
 import { MaxDocumentText } from "./max-document-text";
 import { MaxDocumentDownload } from "./max-document-download";
 import { readableDocumentText } from "@/lib/document-text";
+import { MaxAnswerFeedback } from "./max-answer-feedback";
+import type { KnowledgeAnswer } from "@/modules/max/application/verify-knowledge-answer";
 
-type Source = {
-  documentId: string;
-  courseDocumentId?: string;
-  title: string;
-  snippet: string;
-};
-type Answer = { answer: string; refused: boolean; sources: Source[] };
+type Answer = KnowledgeAnswer;
 type SourceDocument = {
   id: string;
   title: string;
@@ -33,6 +29,7 @@ export function MaxCourseKnowledge({
 }) {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<Answer | null>(null);
+  const [answeredQuestion, setAnsweredQuestion] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [sourceDocument, setSourceDocument] = useState<SourceDocument | null>(
@@ -112,6 +109,7 @@ export function MaxCourseKnowledge({
     event.preventDefault();
     if (busy || question.trim().length < 3) return;
     setBusy(true);
+    const submittedQuestion = question.trim();
     setAnswer(null);
     setMessage("");
     sourceRequest.current?.abort();
@@ -128,7 +126,7 @@ export function MaxCourseKnowledge({
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ courseId, question: question.trim() }),
+        body: JSON.stringify({ courseId, question: submittedQuestion }),
         signal: controller.signal,
         cache: "no-store",
       });
@@ -144,6 +142,7 @@ export function MaxCourseKnowledge({
       if (!response.ok) throw new Error("AI request failed");
       const result: Answer = await response.json();
       setAnswer(result);
+      setAnsweredQuestion(submittedQuestion);
     } catch {
       setMessage(
         "Не удалось получить ответ. Попробуйте снова или обратитесь к HR.",
@@ -216,6 +215,8 @@ export function MaxCourseKnowledge({
             ))}
         </div>
       )}
+      {answer && <MaxAnswerFeedback key={answer.eventId ?? answeredQuestion} token={token} courseId={courseId}
+        question={answeredQuestion} result={answer} onRenew={onRenew} />}
       {sourceBusy && <p role="status">Открываем источник...</p>}
       {sourceMessage && <p role="status">{sourceMessage}</p>}
       {sourceDocument && (

@@ -11,14 +11,15 @@ const config = { matcher: JSON.parse(literal[1]) as string[] };
 
 test("MAX routes reach their own session guards without an LMS login", () => {
   for (const url of ["/max", "/api/max/identity", "/api/max/courses", "/api/max/documents",
-    "/api/max/documents/knowledge", "/api/max/documents/knowledge/"]) {
+    "/api/max/documents/knowledge", "/api/max/documents/knowledge/", "/api/max/manager-history",
+    "/api/max/study-plan", "/api/max/ai-feedback", "/api/max/ai-quality/"]) {
     assert.equal(doesProxyMatch({ config, nextConfig: {}, url }), false, url);
   }
 });
 
 test("unknown MAX paths and LMS invitation issuance retain the LMS guard", () => {
   for (const url of ["/connect-max", "/api/max/invitation", "/api/max/documents/knowledge/extra",
-    "/api/max/documents-extra", "/max/extra", "/admin"]) {
+    "/api/max/documents-extra", "/api/max/ai-quality/extra", "/api/max/study-plan-extra", "/max/extra", "/admin"]) {
     assert.equal(doesProxyMatch({ config, nextConfig: {}, url }), true, url);
   }
 });

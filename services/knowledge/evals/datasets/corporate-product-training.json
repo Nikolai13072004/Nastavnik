@@ -1,0 +1,36 @@
+{
+  "name": "corporate-product-training",
+  "description": "Синтетический преддемонстрационный набор Ведомо: похожие модели, точные артикулы, напряжения, монтаж, диагностика, совместимость, сравнение и честный отказ. Не является документацией реального производителя и не доказывает качество на материалах клиента.",
+  "materials": [
+    "materials/corporate-alphadrive-x120.txt",
+    "materials/corporate-alphadrive-x220.txt",
+    "materials/corporate-safesense-s7.txt"
+  ],
+  "cases": [
+    {"id":"x120-article","category":"exact_id","question":"Назови точный артикул комплекта AlphaDrive X120.","material":"corporate-alphadrive-x120.txt","expected_keywords":["AD-X120-220-08"],"expected_context":["AD-X120-220-08"]},
+    {"id":"x220-article","category":"exact_id","question":"Какой артикул у AlphaDrive X220?","material":"corporate-alphadrive-x220.txt","expected_keywords":["AD-X220-380-22"],"expected_context":["AD-X220-380-22"]},
+    {"id":"s7-article","category":"exact_id","question":"Укажи артикул и тип выхода SafeSense S7.","material":"corporate-safesense-s7.txt","expected_keywords":["SS-S7-PNP-24","PNP","нормально откры"],"expected_context":["SS-S7-PNP-24","PNP"]},
+    {"id":"x120-voltage","category":"constraint","critical":true,"question":"Можно ли подключить X120 к сети 380 В?","material":"corporate-alphadrive-x120.txt","expected_keywords":["запрещ"],"expected_context":["380 В запрещено"],"forbidden_keywords":["можно подключить к 380","поддерживает 380"]},
+    {"id":"x220-voltage","category":"constraint","critical":true,"question":"Какое питание требуется X220?","material":"corporate-alphadrive-x220.txt","expected_keywords":["трёхфаз","380"],"expected_context":["380–415 В"],"forbidden_keywords":["однофазное питание 220 В поддерживается"]},
+    {"id":"s7-voltage","category":"constraint","critical":true,"question":"Какой диапазон питания у SafeSense S7?","material":"corporate-safesense-s7.txt","expected_keywords":["20","28","постоян"],"expected_context":["20–28 В"]},
+    {"id":"x120-clearance","category":"installation","critical":true,"question":"Какие вентиляционные зазоры нужны X120?","material":"corporate-alphadrive-x120.txt","expected_keywords":["100","20"],"expected_context":["100 мм","20 мм"],"forbidden_keywords":["150 мм","30 мм"]},
+    {"id":"x220-clearance","category":"installation","critical":true,"question":"Какие минимальные зазоры нужны X220?","material":"corporate-alphadrive-x220.txt","expected_keywords":["150","30"],"expected_context":["150 мм","30 мм"],"forbidden_keywords":["100 мм","20 мм"]},
+    {"id":"x120-wait","category":"safety","critical":true,"question":"Сколько ждать после отключения X120 перед монтажом?","material":"corporate-alphadrive-x120.txt","expected_keywords":["10 минут"],"expected_context":["не менее 10 минут"],"forbidden_keywords":["15 минут"]},
+    {"id":"x220-wait","category":"safety","critical":true,"question":"Через сколько минут после отключения можно монтировать X220?","material":"corporate-alphadrive-x220.txt","expected_keywords":["15 минут"],"expected_context":["не менее 15 минут"],"forbidden_keywords":["10 минут"]},
+    {"id":"x120-e07","category":"diagnostics","question":"Что означает E07 на X120 и что сделать?","material":"corporate-alphadrive-x120.txt","expected_keywords":["перегрев","нагруз","вентиляцион"],"expected_context":["E07","перегрев"]},
+    {"id":"x220-e12","category":"diagnostics","critical":true,"question":"Что означает E12 на X220?","material":"corporate-alphadrive-x220.txt","expected_keywords":["потер","фаз","L1"],"expected_context":["E12","потерю фазы"]},
+    {"id":"x120-ethernet","category":"compatibility","critical":true,"question":"Можно ли поставить AlphaLink-ETH на X120?","material":"corporate-alphadrive-x120.txt","expected_keywords":["несовместим"],"expected_context":["AlphaLink-ETH","несовместим"],"forbidden_keywords":["поддерживается AlphaLink-ETH"]},
+    {"id":"x220-ethernet","category":"compatibility","question":"Какая прошивка нужна X220 для AlphaLink-ETH?","material":"corporate-alphadrive-x220.txt","expected_keywords":["2.1"],"expected_context":["не ниже 2.1"]},
+    {"id":"x120-modbus","category":"compatibility","question":"Куда подключается AlphaLink-MB на X120 и какая нужна прошивка?","material":"corporate-alphadrive-x120.txt","expected_keywords":["CN3","1.4"],"expected_context":["CN3","1.4"]},
+    {"id":"s7-gap","category":"installation","critical":true,"question":"Какой максимальный зазор у SafeSense S7?","material":"corporate-safesense-s7.txt","expected_keywords":["8 мм"],"expected_context":["8 мм"]},
+    {"id":"s7-test","category":"procedure","critical":true,"question":"Как проверить SafeSense S7 после монтажа?","material":"corporate-safesense-s7.txt","answer_mode":"Подробно","expected_keywords":["открыть дверь","безопасн","отключ"],"expected_context":["открыть дверь","безопасный выход отключился"]},
+    {"id":"compare-protection","category":"comparison","question":"Сравни степень защиты X120, X220 и SafeSense S7.","expected_keywords":["X120","IP20","X220","IP54","S7","IP67"],"expected_context":["IP20","IP54","IP67"]},
+    {"id":"compare-temperature","category":"comparison","question":"У какой из трёх моделей самый широкий рабочий температурный диапазон?","expected_keywords":["SafeSense S7","−25","+60"],"expected_context":["−25 до +60"]},
+    {"id":"compare-warranty","category":"comparison","question":"Сравни гарантию X120, X220 и S7.","expected_keywords":["24","36","18"],"expected_context":["24 месяца","36 месяцев","18 месяцев"]},
+    {"id":"refusal-x120-bluetooth","category":"refusal","critical":true,"question":"Как подключить X120 к смартфону по Bluetooth?","expect_refusal":true,"forbidden_keywords":["включите Bluetooth","приложение AlphaDrive"]},
+    {"id":"refusal-x220-current","category":"refusal","critical":true,"question":"Какой номинальный выходной ток X220 в амперах?","expect_refusal":true,"forbidden_keywords":["10 А","12 А","15 А"]},
+    {"id":"refusal-s7-cable","category":"refusal","critical":true,"question":"Какова максимальная длина кабеля SafeSense S7?","expect_refusal":true,"forbidden_keywords":["10 метров","20 метров","50 метров"]},
+    {"id":"refusal-x120-reset","category":"refusal","critical":true,"question":"Какая комбинация кнопок выполняет заводской сброс X120?","expect_refusal":true,"forbidden_keywords":["удерживайте кнопки","нажмите одновременно"]},
+    {"id":"refusal-certification","category":"refusal","critical":true,"question":"Какие сертификаты взрывозащиты есть у этих устройств?","expect_refusal":true,"forbidden_keywords":["ATEX","IECEx","взрывозащищ"]}
+  ]
+}

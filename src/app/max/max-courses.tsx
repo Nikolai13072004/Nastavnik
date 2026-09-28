@@ -20,6 +20,7 @@ type CourseDetail = {
   title: string;
   description: string | null;
   completed: boolean;
+  dueAt?: string | null;
   materials: Array<{ id: string; title: string; content: string | null; completed: boolean }>;
   quizzes: MaxQuizSummary[];
   hasUnsupportedItems: boolean;
@@ -190,8 +191,9 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCou
           setConfirmMaterialId(null);
         }}>К моим курсам</button>
         <h3>{detail.title}</h3>
+        {detail.dueAt && <p>Пройти до: {new Date(detail.dueAt).toLocaleString("ru-RU")}. Срок обучения не закрывает доступ к материалам.</p>}
         {detail.completed && <p className={styles.courseCompletion} role="status">
-          {designPreview ? "Пример завершённого курса." : "Курс завершён. Результат сохранён в Prodigy."}
+          {designPreview ? "Пример завершённого курса." : "Курс завершён. Результат сохранён."}
         </p>}
         {detail.description && <p>{detail.description}</p>}
         {detail.materials.map((material) => <article key={material.id} className={styles.material}>

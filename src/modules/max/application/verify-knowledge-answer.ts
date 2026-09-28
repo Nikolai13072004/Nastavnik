@@ -9,7 +9,7 @@ export type KnowledgeSource = {
   courseDocumentId?: string;
 };
 
-export type KnowledgeAnswer = { answer: string; refused: boolean; sources: KnowledgeSource[] };
+export type KnowledgeAnswer = { answer: string; refused: boolean; sources: KnowledgeSource[]; eventId?: string };
 
 export type AuthorizedDocument = {
   id: string;

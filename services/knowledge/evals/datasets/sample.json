@@ -1,0 +1,38 @@
+{
+  "name": "sample-bio",
+  "description": "Маленький демонстрационный набор по биологии (фотосинтез и клеточное дыхание). Показывает формат датасета и прогоняет реальный RAG-пайплайн от и до.",
+  "materials": ["materials/bio-photosynthesis.txt"],
+  "cases": [
+    {
+      "id": "photosynthesis-products",
+      "question": "Что такое фотосинтез и какие у него конечные продукты?",
+      "expected_keywords": ["свет", "углекислый газ", "глюкоз", "кислород"],
+      "expected_context": ["фотосинтез", "хлоропласт"]
+    },
+    {
+      "id": "chlorophyll-pigment",
+      "question": "Какой пигмент поглощает свет при фотосинтезе?",
+      "expected_keywords": ["хлорофилл"],
+      "expected_context": ["хлорофилл"]
+    },
+    {
+      "id": "krebs-location",
+      "question": "Где в клетке протекает цикл Кребса?",
+      "expected_keywords": ["митохондри"],
+      "expected_context": ["цикл Кребса", "митохондри"]
+    },
+    {
+      "id": "atp-yield",
+      "question": "Сколько молекул АТФ образуется при полном окислении одной молекулы глюкозы?",
+      "expected_keywords": ["36", "АТФ"],
+      "expected_context": ["36-38"]
+    },
+    {
+      "id": "respiration-stages",
+      "question": "Из каких трёх этапов состоит аэробное клеточное дыхание?",
+      "answer_mode": "Подробно",
+      "expected_keywords": ["гликолиз", "Кребс", "фосфорилирован"],
+      "expected_context": ["гликолиз", "окислительного фосфорилирования"]
+    }
+  ]
+}

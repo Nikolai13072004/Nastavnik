@@ -247,6 +247,16 @@
 .reportAssignment { margin-top: 8px; }
 .reportAssignment h3, .reportResults h3 { margin: 0; font-size: 17px; }
 .reportAssignment p { margin: 8px 0 0; color: var(--text-secondary); }
+.reportResults { display: grid; gap: 12px; }
+.reportResults > ul > li {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--background-card);
+  overflow-wrap: anywhere;
+}
+.reportResults > ul > li > .back { justify-self: start; }
 .employeeCode code { display: block; margin-top: 10px; color: var(--text-themed); font-size: 14px; overflow-wrap: anywhere; user-select: all; }
 
 .documentList strong { display: block; color: var(--text-primary); overflow-wrap: anywhere; }
@@ -272,6 +282,33 @@
 .documentTrainingReport summary { color: var(--text-themed); cursor: pointer; }
 .documentTrainingReport ul { margin-top: 8px; padding-left: 18px; }
 .documentCheckPreview, .documentTraining { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--divider-primary); }
+
+.learnerHistory, .hrAnalytics {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--divider-primary);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.learnerHistory h4, .hrAnalytics h4 { margin: 24px 0 12px; }
+.learnerHistory li, .hrAnalytics li { margin-bottom: 12px; }
+.learnerHistory p, .hrAnalytics p { line-height: 1.5; }
+.feedbackForm { margin-top: 16px; }
+.feedbackForm label { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.feedbackForm input:not([type="checkbox"]), .feedbackForm textarea, .feedbackForm select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 12px;
+  font: inherit;
+  color: var(--text-primary);
+  background: var(--background-secondary);
+  border: 1px solid var(--divider-primary);
+  border-radius: 8px;
+}
+.feedbackForm .checkLabel { flex-direction: row; align-items: flex-start; }
+.checkLabel input { flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--controls-active); }
+.preservedText { white-space: pre-wrap; overflow-wrap: anywhere; }
 
 .quizQuestion { margin: 0; padding: 16px 0 0; border: 0; }
 .quizQuestion legend { color: var(--text-primary); font-weight: 600; line-height: 1.45; }

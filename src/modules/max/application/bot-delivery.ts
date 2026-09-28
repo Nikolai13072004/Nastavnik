@@ -6,7 +6,8 @@ export type BotEvent = BotStart | BotHelp | ChatEvent;
 export type BotDelivery = {
   eventKey: string;
   maxUserId: string;
-  kind?: "WELCOME" | "DOCUMENT_REVISION" | "HELP" | "CHAT";
+  kind?: "WELCOME" | "DOCUMENT_REVISION" | "HELP" | "CHAT" | "STUDY_REMINDER";
+  studyPlanId?: string | null;
   documentId?: string | null;
   chatInputCiphertext?: string | null;
 };
@@ -71,6 +72,9 @@ export async function deliverNextBotMessage(
   sendChat: (job: BotDelivery) => Promise<string> = async () => {
     throw new Error("Chat sender is not configured");
   },
+  sendStudyReminder: (job: BotDelivery) => Promise<string> = async () => {
+    throw new Error("Study reminder sender is not configured");
+  },
 ): Promise<"idle" | "sent" | "uncertain"> {
   const job = await repository.claim(botUsername);
   if (!job) return "idle";
@@ -78,7 +82,8 @@ export async function deliverNextBotMessage(
   let outcome: DeliveryOutcome;
   try {
     const sender = job.kind === "DOCUMENT_REVISION" ? sendRevision : job.kind === "HELP" ? sendHelp : send;
-    const messageId = job.kind === "CHAT" ? await sendChat(job) : await sender(Number(job.maxUserId), botUsername);
+    const messageId = job.kind === "STUDY_REMINDER" ? await sendStudyReminder(job)
+      : job.kind === "CHAT" ? await sendChat(job) : await sender(Number(job.maxUserId), botUsername);
     outcome = { status: "SENT", messageId };
   } catch {
     // Even transport/5xx failures can follow a successful remote send. No automatic resend.
