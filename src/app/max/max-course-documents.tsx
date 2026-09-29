@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import styles from "./max.module.css";
 import { MaxDocumentText } from "./max-document-text";
 import { MaxDocumentDownload } from "./max-document-download";
+import { scrollToTarget } from "./scroll-to-target";
 
 type DocumentRow = {
   id: string;
@@ -43,6 +44,7 @@ export function MaxCourseDocuments({
   const [loading, setLoading] = useState(true);
   const [refreshMessage, setRefreshMessage] = useState("");
   const preview = useRef<HTMLDivElement | null>(null);
+  const returnTarget = useRef<HTMLButtonElement | null>(null);
   const openRequest = useRef<AbortController | null>(null);
   const openedId = opened?.id;
 
@@ -95,7 +97,8 @@ export function MaxCourseDocuments({
     };
   }, [courseId, token, onRenew, refreshKey]);
 
-  async function openDocument(documentId: string) {
+  async function openDocument(documentId: string, trigger: HTMLButtonElement) {
+    returnTarget.current = trigger;
     openRequest.current?.abort();
     const controller = new AbortController();
     openRequest.current = controller;
@@ -231,7 +234,7 @@ export function MaxCourseDocuments({
     >
       <h4 id="max-course-documents-title">Рабочие документы</h4>
       <p>
-        Документы добавляет и публикует HR в разделе «Отчёт HR». Если нужного
+        Документы добавляет и публикует HR в разделе HR. Если нужного
         файла нет, обратитесь к ответственному за курс.
       </p>
       {!loading && !message && documents.length === 0 && (
@@ -275,7 +278,7 @@ export function MaxCourseDocuments({
                 type="button"
                 className={styles.back}
                 disabled={busy}
-                onClick={() => void openDocument(document.id)}
+                onClick={(event) => void openDocument(document.id, event.currentTarget)}
               >
                 Читать
               </button>
@@ -341,7 +344,10 @@ export function MaxCourseDocuments({
           <button
             type="button"
             className={styles.back}
-            onClick={() => setOpened(null)}
+            onClick={() => {
+              setOpened(null);
+              scrollToTarget(returnTarget.current);
+            }}
           >
             Закрыть текст
           </button>

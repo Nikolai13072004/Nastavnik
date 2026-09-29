@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CheckCircle2, XCircle } from "lucide-react";
 import styles from "./max.module.css";
 
 export type MaxQuizSummary = {
@@ -120,7 +121,14 @@ export function MaxQuiz({ token, courseId, quiz, onResult }: {
       </button>
     </>}
     {state.kind === "result" && <>
-      <p role="status">{state.result.outcome === "PASSED" ? "Тест сдан" : "Тест не сдан"} · верно {state.result.correctAnswers} из {state.result.totalQuestions}.</p>
+      <div className={`${styles.quizResult} ${state.result.outcome === "PASSED"
+        ? styles.quizResultPassed : styles.quizResultFailed}`} role="status">
+        {state.result.outcome === "PASSED" ? <CheckCircle2 size={26} aria-hidden /> : <XCircle size={26} aria-hidden />}
+        <div>
+          <strong>{state.result.outcome === "PASSED" ? "Тест сдан" : "Тест не сдан"}</strong>
+          <p>Верно {state.result.correctAnswers} из {state.result.totalQuestions}.</p>
+        </div>
+      </div>
       {quiz.repeatable && <p>Лучший результат сохраняется. Количество повторов не ограничено.</p>}
       {(quiz.repeatable || (state.result.outcome === "FAILED" && quiz.attemptsUsed < quiz.maxAttempts)) &&
         <button type="button" className={styles.retry} disabled={busy} onClick={() => void start()}>Повторить тест</button>}

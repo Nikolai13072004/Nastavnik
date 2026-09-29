@@ -4,6 +4,7 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import styles from "./max.module.css";
 import { MaxDocumentText } from "./max-document-text";
 import { MaxDocumentDownload } from "./max-document-download";
+import { scrollToTarget } from "./scroll-to-target";
 
 type DocumentRow = {
   id: string;
@@ -83,7 +84,13 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
   const [aiImportEnabled, setAiImportEnabled] = useState(false);
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const connection = useRef<AbortController | null>(null);
+  const previewElement = useRef<HTMLDivElement | null>(null);
+  const returnTarget = useRef<HTMLButtonElement | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    if (preview) scrollToTarget(previewElement.current);
+  }, [preview]);
 
   useEffect(() => {
     setBusy(false);
@@ -179,7 +186,8 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
     }
   }
 
-  async function showPreview(documentId: string) {
+  async function showPreview(documentId: string, trigger: HTMLButtonElement) {
+    returnTarget.current = trigger;
     setBusy(true);
     setMessage("");
     try {
@@ -258,15 +266,15 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
         const result: { status?: string } = await response.json().catch(() => ({}));
         if (response.ok && result.status === "APPROVED") {
           setMessage("Источник проверен и подключён к AI.");
-        } else if (result.status === "PROCESSING") {
-          setMessage("Готовим документ для AI. После обработки подключение сохранится автоматически.");
+        } else if (result.status === "PROCESSING" || result.status === "SOURCE_BUSY") {
+          setMessage(result.status === "SOURCE_BUSY"
+            ? "В этом курсе обрабатывается другой документ. Подождём и подключим источник автоматически."
+            : "Готовим документ для AI. После обработки подключение сохранится автоматически.");
           if (attempt < 39) {
             await waitForIndex(controller.signal);
             continue;
           }
           setMessage("Документ ещё обрабатывается. Можно уйти с экрана и позже нажать «Подключить к AI» ещё раз. Копия не создастся.");
-        } else if (result.status === "SOURCE_BUSY") {
-          setMessage("В этом курсе обрабатывается другой документ. Дождитесь завершения и повторите подключение.");
         } else if (result.status === "INDEXING_FAILED") {
           setMessage("Не удалось обработать источник. Повторите подключение позже. Сотрудникам документ доступен для чтения.");
         } else if (result.status === "SOURCE_NOT_READY") {
@@ -367,7 +375,8 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
         ? "Снята" : document.approvedAt ? "Опубликована" : "Черновик"}</small></div>
       {document.changeSummary && <p>Изменение: {document.changeSummary}</p>}
       <div className={styles.documentActions}>
-        <button type="button" className={styles.back} disabled={busy} onClick={() => void showPreview(document.id)}>Проверить текст</button>
+        <button type="button" className={styles.back} disabled={busy}
+          onClick={(event) => void showPreview(document.id, event.currentTarget)}>Проверить текст</button>
         {!document.revokedAt && <button type="button" className={styles.back} disabled={busy}
           onClick={() => setConfirmation({ id: document.id, publish: !document.approvedAt })}>
           {document.approvedAt ? "Снять" : "Опубликовать"}
@@ -410,7 +419,7 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
         <button type="button" className={styles.back} onClick={() => setConfirmation(null)}>Отмена</button>
       </div>}
     </li>)}</ul>}
-    {preview && <div className={styles.documentPreview}>
+    {preview && <div ref={previewElement} tabIndex={-1} className={styles.documentPreview}>
       <h4>{preview.title}</h4>
       {preview.changeSummary && <p>Изменение: {preview.changeSummary}</p>}
       <MaxDocumentText text={preview.contentText} />
@@ -429,7 +438,10 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
         <ol>{(preview.checkOptionsJson ? JSON.parse(preview.checkOptionsJson) as string[] : []).map((option, index) =>
           <li key={index}>{option}{index === preview.checkCorrectIndex ? " (правильный)" : ""}</li>)}</ol>
       </div>}
-      <button type="button" className={styles.back} onClick={() => setPreview(null)}>Закрыть текст</button>
+      <button type="button" className={styles.back} onClick={() => {
+        setPreview(null);
+        scrollToTarget(returnTarget.current);
+      }}>Закрыть текст</button>
     </div>}
   </section>;
 }

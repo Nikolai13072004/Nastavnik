@@ -353,7 +353,7 @@ export function createChatFlow(deps: {
             ? "Тренировочный тест: повторять можно без ограничений, даже после сдачи. Лучший результат сохраняется."
             : `Попыток использовано: ${quiz.attemptsUsed} из ${quiz.maxAttempts}.`}\n\nНезавершённая попытка будет продолжена, а не создана заново.${state.quiz && state.quiz.id !== quiz.id ? " Черновик ответов другого теста в чате будет заменён." : ""}`,
           buttons: [
-            [chatButton(state, "Начать или продолжить", "start", index)],
+            [chatButton(state, currentQuiz?.id === quiz.id ? "Продолжить тест" : "Начать тест", "start", index)],
             [chatButton(state, "Назад", "tests")],
           ],
         };

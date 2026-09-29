@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Button, Input, Typography } from "@maxhub/max-ui";
+import { Button, Typography } from "@maxhub/max-ui";
 import { Link2 } from "lucide-react";
 import styles from "./max.module.css";
 
@@ -45,11 +45,14 @@ export function LinkEmployee({ onLinked }: { onLinked: () => void }) {
   return (
     <form onSubmit={submit} className={styles.linkForm}>
       <Typography.Title asChild variant="large-strong"><label htmlFor="employee-code">Одноразовый код привязки</label></Typography.Title>
-      <Input id="employee-code" value={token} onChange={(event) => setToken(event.target.value)}
-        required maxLength={32} minLength={32} pattern="[a-zA-Z0-9_\-]{32}" autoComplete="off"
-        autoCapitalize="none" spellCheck={false} disabled={busy} aria-describedby="employee-code-hint"
-        placeholder="Вставьте личный код" iconBefore={<Link2 size={20} />} />
-      <p id="employee-code-hint">Код выдаёт HR или руководитель, на демо-стенде - администратор. Он действует 15 минут. Не используйте чужой код и не передавайте свой.</p>
+      <div className={styles.codeInput}>
+        <Link2 size={20} aria-hidden="true" />
+        <input id="employee-code" value={token} onChange={(event) => setToken(event.target.value)}
+          required maxLength={32} minLength={32} pattern="[a-zA-Z0-9_\-]{32}" autoComplete="off"
+          autoCapitalize="none" spellCheck={false} disabled={busy} aria-describedby="employee-code-hint"
+          placeholder="Вставьте личный код" />
+      </div>
+      <p id="employee-code-hint">Код создают в разделе HR и передают вам лично. На демо-стенде попросите его у участника с доступом HR. Код действует 15 минут. Не отправляйте его боту.</p>
       {error && <p role="alert">{error}</p>}
       <Button type="submit" stretched size="medium" loading={busy} disabled={busy || token.length !== 32}>
         Связать профиль

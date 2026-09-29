@@ -26,7 +26,7 @@ export function chatCourseActions(
       chatButton(state, "Спросить AI", "ask"),
       chatButton(state, "Прогресс", "progress"),
     ],
-    [chatButton(state, state.quiz?.courseId === state.courseId ? "Другие тесты" : "Пройти тест", "tests")],
+    [chatButton(state, state.quiz?.courseId === state.courseId ? "Другие тесты" : "Выбрать тест", "tests")],
     [
       {
         type: "open_app",
