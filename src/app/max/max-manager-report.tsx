@@ -1,10 +1,11 @@
 "use client";
 
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { MaxManagerDocuments } from "./max-manager-documents";
 import { MaxLearnerHistory } from "./max-learner-history";
 import { MaxHrAnalytics } from "./max-hr-analytics";
 import styles from "./max.module.css";
+import { scrollToTarget } from "./scroll-to-target";
 
 type Course = { id: string; title: string };
 type Assignment = {
@@ -25,6 +26,7 @@ type Report = {
 
 export function MaxManagerReport({ token, onRenew }: { token: string; onRenew: () => void }) {
   const [open, setOpen] = useState(false);
+  const [activeView, setActiveView] = useState<"people" | "courses" | "results">("people");
   const [courses, setCourses] = useState<Course[]>([]);
   const [courseId, setCourseId] = useState("");
   const [report, setReport] = useState<Report | null>(null);
@@ -45,6 +47,8 @@ export function MaxManagerReport({ token, onRenew }: { token: string; onRenew: (
   const [busy, setBusy] = useState(false);
   const [historyLearnerId, setHistoryLearnerId] = useState("");
   const [exporting, setExporting] = useState(false);
+  const sectionToggle = useRef<HTMLButtonElement | null>(null);
+  const sectionNavigation = useRef<HTMLDivElement | null>(null);
 
   async function exportReport() {
     if (!courseId || exporting) return;
@@ -205,12 +209,25 @@ export function MaxManagerReport({ token, onRenew }: { token: string; onRenew: (
   }
 
   return <section className={styles.managerReport} aria-labelledby="manager-report-title">
-    <h2 id="manager-report-title">Отчёт HR</h2>
-    <p>Результаты, назначения и документы курсов вашей организации. Чтобы загрузить источник, откройте раздел и выберите курс.</p>
-    <button type="button" className={styles.retry} onClick={() => setOpen((value) => !value)}>
+    <h2 id="manager-report-title">Управление обучением</h2>
+    <p>Сотрудники, назначение курсов и результаты вашей организации.</p>
+    <button ref={sectionToggle} type="button" className={styles.retry} aria-expanded={open} onClick={() => {
+      if (!open && !assignment) setBusy(true);
+      setOpen((value) => !value);
+      if (open) scrollToTarget(sectionToggle.current);
+      else window.requestAnimationFrame(() => scrollToTarget(sectionNavigation.current));
+    }}>
       {open ? "Скрыть раздел HR" : "Открыть раздел HR"}
     </button>
-    {open && <>
+    {open && <div className={styles.managerBody}>
+      <div ref={sectionNavigation} tabIndex={-1} className={styles.managerNavigation} role="group" aria-label="Разделы HR">
+        <button type="button" aria-pressed={activeView === "people"} onClick={() => setActiveView("people")}>Сотрудники</button>
+        <button type="button" aria-pressed={activeView === "courses"} onClick={() => setActiveView("courses")}>Курсы</button>
+        <button type="button" aria-pressed={activeView === "results"} onClick={() => setActiveView("results")}>Результаты</button>
+      </div>
+      {busy && <p role="status">Обновляем данные HR…</p>}
+      {message && <p role="alert">{message} <button type="button" className={styles.back} onClick={onRenew}>Проверить вход</button></p>}
+      {activeView === "people" && <div className={styles.managerPanel}>
       {assignment?.canCreate && <details className={styles.launchHelp}>
         <summary>Как подключить сотрудника</summary>
         <ol>
@@ -220,8 +237,6 @@ export function MaxManagerReport({ token, onRenew }: { token: string; onRenew: (
         </ol>
         <p>Код действует 15 минут. Сотрудник не регистрируется самостоятельно и не получает права HR. Результаты появятся в отчёте после прохождения.</p>
       </details>}
-      {busy && <p role="status">Загружаем результаты…</p>}
-      {message && <p role="alert">{message} <button type="button" className={styles.back} onClick={onRenew}>Проверить вход</button></p>}
       {assignment?.canCreate && <form className={styles.reportAssignment} onSubmit={(event) => void addEmployee(event)}>
         <h3>Добавить сотрудника</h3>
         <p>Создайте профиль своей организации. Почта на тестовом стенде не отправляется.</p>
@@ -241,8 +256,9 @@ export function MaxManagerReport({ token, onRenew }: { token: string; onRenew: (
           {creatingEmployee ? "Добавляем…" : "Добавить"}
         </button>
       </form>}
-      {assignment?.canCreate && assignment.learners.some((learner) => learner.canIssueCode) && <form className={styles.reportAssignment} onSubmit={(event) => void reissueCode(event)}>
-        <h3>Новый код для существующего сотрудника</h3>
+      {assignment?.canCreate && assignment.learners.some((learner) => learner.canIssueCode) && <details className={styles.launchHelp}>
+        <summary>Новый код для существующего сотрудника</summary>
+        <form className={styles.reportAssignment} onSubmit={(event) => void reissueCode(event)}>
         <p>Если прежний код истёк или потерян, выдайте новый. После привязки MAX код больше не нужен.</p>
         <label className={styles.reportSelect}>Сотрудник
           <select value={codeUserId} onChange={(event) => setCodeUserId(event.target.value)} required>
@@ -254,20 +270,25 @@ export function MaxManagerReport({ token, onRenew }: { token: string; onRenew: (
         <button type="submit" className={styles.retry} disabled={issuingCode || !codeUserId}>
           {issuingCode ? "Выдаём…" : "Выдать новый код"}
         </button>
-      </form>}
+        </form>
+      </details>}
       {assignment?.canCreate && employeeMessage && <p role={employeeCode ? "status" : "alert"}>{employeeMessage}</p>}
       {assignment?.canCreate && employeeCode && <div className={styles.employeeCode} role="status">
         <strong>Одноразовый код для сотрудника</strong>
         <code>{employeeCode.token}</code>
         <p>Передайте код только этому сотруднику. Он действует до {new Date(employeeCode.expiresAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })} и вводится в Mini App MAX.</p>
       </div>}
-      {!busy && !message && courses.length === 0 && <p>Пока нет опубликованных курсов вашей организации.</p>}
+      </div>}
+      {activeView !== "people" && <div className={styles.managerPanel}>
+      {!busy && !message && courses.length === 0 && <p>Пока нет опубликованных курсов вашей организации. Новый курс создаёт администратор в веб-панели.</p>}
       {courses.length > 0 && <label className={styles.reportSelect}>Курс
         <select value={courseId} onChange={(event) => { setReport(null); setAssignmentMessage(""); setCourseId(event.target.value); }}>
           <option value="">Выберите курс</option>
           {courses.map((course) => <option key={course.id} value={course.id}>{course.title}</option>)}
         </select>
       </label>}
+      {activeView === "courses" && <>
+      <p className={styles.managerHint}>Здесь можно назначить опубликованный курс и добавить документы. Новый курс и тесты создаёт администратор в веб-панели.</p>
       {courseId && assignment?.canAssign && <form className={styles.reportAssignment} onSubmit={(event) => void assignCourse(event)}>
         <h3>Назначить курс</h3>
         <label className={styles.reportSelect}>Сотрудник
@@ -283,6 +304,9 @@ export function MaxManagerReport({ token, onRenew }: { token: string; onRenew: (
         {assignmentMessage && <p role="status">{assignmentMessage}</p>}
       </form>}
       {courseId && assignment?.canAssign && <MaxManagerDocuments key={`documents-${courseId}`} courseId={courseId} token={token} onRenew={onRenew} />}
+      </>}
+      {activeView === "results" && <>
+      {!courseId && courses.length > 0 && <p className={styles.managerHint}>Выберите курс, чтобы увидеть результаты и качество ответов AI.</p>}
       {report && <div className={styles.reportResults}>
         <h3>{report.title}</h3>
         <p>Завершили: {report.completedCount} из {report.assignedCount}</p>
@@ -311,6 +335,8 @@ export function MaxManagerReport({ token, onRenew }: { token: string; onRenew: (
         canAssign={assignment?.canAssign ?? false} onRenew={onRenew} onClose={() => setHistoryLearnerId("")}
         onSaved={() => setRefreshKey((value) => value + 1)} />}
       {courseId && <MaxHrAnalytics key={`analytics-${courseId}`} courseId={courseId} token={token} onRenew={onRenew} />}
-    </>}
+      </>}
+      </div>}
+    </div>}
   </section>;
 }

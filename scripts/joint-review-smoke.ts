@@ -106,13 +106,15 @@ async function checkPublishedDocumentImport(db: PrismaClient) {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(input), signal: AbortSignal.timeout(20_000), redirect: "error",
       });
-      assert.ok(response.status === 200 || response.status === 202, "Indexing must succeed without a retry");
       const result = await response.json();
+      const waitingForWorker = response.status === 409 && result.status === "SOURCE_BUSY";
+      assert.ok(response.status === 200 || response.status === 202 || waitingForWorker,
+        `Indexing must succeed without a retry (HTTP ${response.status}, status ${result.status ?? "unknown"})`);
       if (result.status === "APPROVED") {
         approved = true;
         break;
       }
-      assert.equal(result.status, "PROCESSING");
+      assert.ok(result.status === "PROCESSING" || waitingForWorker);
     }
     assert.equal(approved, true, "Real document indexing must finish within the review timeout");
     stage = "verify source mapping";

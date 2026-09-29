@@ -144,7 +144,36 @@
 }
 .linkForm { display: grid; gap: 12px; }
 .linkForm label { color: var(--text-primary); font-size: 14px; font-weight: 600; }
-.linkForm input,
+.codeInput {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 52px;
+  padding: 0 14px;
+  border: 1px solid var(--divider-primary);
+  border-radius: 14px;
+  background: var(--background-tertiary);
+  color: var(--text-secondary);
+}
+.codeInput:focus-within { outline: 2px solid var(--controls-active); outline-offset: 2px; }
+.codeInput svg { flex: none; }
+.codeInput input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  min-height: 50px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  /* The LMS-wide input rules use !important; keep this field inside one surface. */
+  background-color: transparent !important;
+  color: var(--text-primary) !important;
+  box-shadow: none;
+}
+.codeInput input:focus { box-shadow: none; }
+.codeInput input::placeholder { color: var(--text-tertiary) !important; }
+.codeInput input:disabled { opacity: .6; }
 .courseSearch textarea,
 .reportSelect input,
 .reportSelect select,
@@ -164,7 +193,6 @@
   font: inherit;
 }
 .reportSelect input[type="file"] { overflow: hidden; padding: 10px; }
-.linkForm input:focus,
 .courseSearch textarea:focus,
 .reportSelect input:focus,
 .reportSelect select:focus,
@@ -214,6 +242,8 @@
 .courses > ul > li > span, .documentList small { display: block; margin-top: 6px; color: var(--text-tertiary); font-size: 12px; }
 .courses > ul > li > .retry, .material > .retry, .quiz > .retry, .courseSearch > .retry, .reportAssignment > .retry, .documentConfirm > .retry { width: 100%; }
 .courseDetail { display: grid; gap: 14px; }
+.courseHeading { scroll-margin-top: 16px; }
+.courseHeading:focus { outline: none; }
 .courseCompletion { padding: 14px 16px; border-radius: 16px; background: color-mix(in srgb, var(--button-primary) 12%, var(--background-card)); color: var(--text-themed); font-weight: 600; }
 .materialContent { margin-top: 14px; color: var(--text-primary); font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; }
 .materialContent p + p { margin-top: 12px; }
@@ -243,6 +273,30 @@
 .sourceLink:disabled { opacity: .55; cursor: wait; }
 
 .managerReport, .workDocuments { padding-top: 10px; border-top: 1px solid var(--divider-primary); }
+.managerBody, .managerPanel { display: grid; gap: 14px; min-width: 0; }
+.managerBody { min-height: 140px; }
+.managerNavigation {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 1px solid var(--divider-primary);
+}
+.managerNavigation button {
+  min-height: 48px;
+  padding: 8px 4px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.managerNavigation button[aria-pressed="true"] {
+  border-bottom-color: var(--controls-active);
+  color: var(--text-primary);
+}
+.managerNavigation button:focus-visible { outline: 2px solid var(--controls-active); outline-offset: -4px; }
+.managerHint { margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.5; }
 .reportSelect { display: block; color: var(--text-primary); font-size: 13px; font-weight: 500; }
 .reportAssignment { margin-top: 8px; }
 .reportAssignment h3, .reportResults h3 { margin: 0; font-size: 17px; }
@@ -315,6 +369,28 @@
 .quizQuestion label { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; color: var(--text-primary); line-height: 1.4; }
 .quizQuestion input { width: 20px; height: 20px; flex: none; margin-top: 1px; accent-color: var(--controls-active); }
 .quizQuestion label span { min-width: 0; overflow-wrap: anywhere; }
+.quizResult {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid;
+  border-radius: 16px;
+}
+.quizResult svg { flex: none; }
+.quizResult strong { display: block; font-size: 17px; line-height: 1.3; }
+.quizResult p { margin: 4px 0 0; color: var(--text-secondary); }
+.quizResultPassed {
+  border-color: #6bc9a0;
+  background: color-mix(in srgb, #48b584 16%, var(--background-card));
+  color: #2c9a6a;
+}
+.quizResultFailed {
+  border-color: #e8a39c;
+  background: color-mix(in srgb, #db786f 15%, var(--background-card));
+  color: #cf685f;
+}
 
 @media (max-width: 360px) {
   .page { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }

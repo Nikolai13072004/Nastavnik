@@ -150,10 +150,10 @@ async function select(f: ReturnType<typeof fixture>) {
 }
 async function begin(f: ReturnType<typeof fixture>) {
   const panel = await select(f);
-  const tests = await f.flow(callback(panel, "Пройти тест"));
+  const tests = await f.flow(callback(panel, "Выбрать тест"));
   const confirmation = await f.flow(callback(tests, "Проверка"));
   assert.equal(f.counts().starts, 0);
-  return f.flow(callback(confirmation, "Начать или продолжить"));
+  return f.flow(callback(confirmation, "Начать тест"));
 }
 
 test("AI feedback shares one answer only after consent and rejects stale confirmation", async () => {
@@ -194,9 +194,9 @@ test("an older course panel refreshes in place with working actions", async () =
   const f = fixture();
   const oldPanel = await select(f);
   await f.flow(callback(oldPanel, "Прогресс"));
-  const recovered = await f.flow(callback(oldPanel, "Пройти тест"));
+  const recovered = await f.flow(callback(oldPanel, "Выбрать тест"));
   assert.match(recovered.text!, /Первый день.*\n\nМеню обновлено/);
-  const tests = await f.flow(callback(recovered, "Пройти тест"));
+  const tests = await f.flow(callback(recovered, "Выбрать тест"));
   assert.match(tests.text!, /Выберите тест/);
   assert.deepEqual(f.counts(), { starts: 0, submits: 0, asks: 0 });
 });
@@ -205,7 +205,7 @@ test("an expired session opens a usable menu from an old button without starting
   const f = fixture();
   const panel = await select(f);
   f.expireSession();
-  const recovered = await f.flow(callback(panel, "Пройти тест"));
+  const recovered = await f.flow(callback(panel, "Выбрать тест"));
   assert.match(recovered.text!, /Назначено курсов: 1/);
   const selected = await f.flow(callback(recovered, "Первый день"));
   assert.match(selected.text!, /Первый день/);
@@ -246,9 +246,9 @@ test("an old course button cannot select a different course or use an old source
 test("an old menu button can return to current assignments while preserving a quiz draft", async () => {
   const f = fixture();
   const panel = await select(f);
-  const tests = await f.flow(callback(panel, "Пройти тест"));
+  const tests = await f.flow(callback(panel, "Выбрать тест"));
   const confirmation = await f.flow(callback(tests, "Проверка"));
-  const first = await f.flow(callback(confirmation, "Начать или продолжить"));
+  const first = await f.flow(callback(confirmation, "Начать тест"));
   await f.flow(callback(first, "1"));
   const recovered = await f.flow(callback(panel, "Другой курс"));
   assert.match(recovered.text!, /Назначено курсов: 1/);
@@ -262,7 +262,7 @@ test("an old panel cannot recover revoked courses or an unlinked profile", async
   const panel = await select(f);
   await f.flow(text("курсы"));
   f.revoke();
-  const recovered = await f.flow(callback(panel, "Пройти тест"));
+  const recovered = await f.flow(callback(panel, "Выбрать тест"));
   assert.match(recovered.text!, /Назначенных курсов пока нет/);
   assert.equal(f.state()?.quiz, undefined);
   f.unlink();
@@ -430,7 +430,7 @@ test("confirmation returns to the test list, including its original page", async
     })),
   });
   const panel = await select(f);
-  const firstPage = await f.flow(callback(panel, "Пройти тест"));
+  const firstPage = await f.flow(callback(panel, "Выбрать тест"));
   assert.match(firstPage.text!, /Страница 1 из 3/);
   const secondPage = await f.flow(callback(firstPage, "Ещё тесты"));
   assert.match(secondPage.text!, /Страница 2 из 3/);
@@ -606,10 +606,10 @@ test("passed repeatable quizzes stay available and can resume even beyond their 
     quizzes: [{ ...course.quizzes[0], status: "PASSED", attemptsUsed: 10, repeatable: true }],
   });
   const panel = await select(f);
-  const list = await f.flow(callback(panel, "Пройти тест"));
+  const list = await f.flow(callback(panel, "Выбрать тест"));
   const confirmation = await f.flow(callback(list, "Проверка"));
   assert.match(confirmation.text!, /без ограничений/);
-  const first = await f.flow(callback(confirmation, "Начать или продолжить"));
+  const first = await f.flow(callback(confirmation, "Начать тест"));
   const paused = await f.flow(callback(first, "Продолжить позже"));
   const resumed = await f.flow(callback(paused, "Продолжить: Проверка"));
   assert.match(resumed.text!, /Вопрос 1 из 2/);

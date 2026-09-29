@@ -84,9 +84,7 @@ next-env.d.ts
 
 # e2e artifacts
 /.playwright-cli/
-/output/playwright/
-/output/contest/
-/output/pdf/
+/output/
 /playwright-report
 /test-results
 /docs/гайды/*

@@ -7,6 +7,7 @@ import { MaxDocumentDownload } from "./max-document-download";
 import { readableDocumentText } from "@/lib/document-text";
 import { MaxAnswerFeedback } from "./max-answer-feedback";
 import type { KnowledgeAnswer } from "@/modules/max/application/verify-knowledge-answer";
+import { scrollToTarget } from "./scroll-to-target";
 
 type Answer = KnowledgeAnswer;
 type SourceDocument = {
@@ -39,7 +40,7 @@ export function MaxCourseKnowledge({
   const [sourceBusy, setSourceBusy] = useState(false);
   const sourceRequest = useRef<AbortController | null>(null);
   const preview = useRef<HTMLDivElement | null>(null);
-  const sourceButton = useRef<HTMLButtonElement | null>(null);
+  const returnTarget = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => () => sourceRequest.current?.abort(), []);
 
@@ -54,7 +55,8 @@ export function MaxCourseKnowledge({
     });
   }, [sourceDocument]);
 
-  async function openSource(documentId: string) {
+  async function openSource(documentId: string, trigger: HTMLButtonElement) {
+    returnTarget.current = trigger;
     sourceRequest.current?.abort();
     const controller = new AbortController();
     sourceRequest.current = controller;
@@ -200,8 +202,7 @@ export function MaxCourseKnowledge({
                     className={styles.sourceLink}
                     disabled={sourceBusy}
                     onClick={(event) => {
-                      sourceButton.current = event.currentTarget;
-                      void openSource(source.courseDocumentId!);
+                      void openSource(source.courseDocumentId!, event.currentTarget);
                     }}
                   >
                     Читать документ
@@ -245,15 +246,7 @@ export function MaxCourseKnowledge({
               className={styles.back}
               onClick={() => {
                 setSourceDocument(null);
-                sourceButton.current?.focus({ preventScroll: true });
-                sourceButton.current?.scrollIntoView({
-                  behavior: window.matchMedia(
-                    "(prefers-reduced-motion: reduce)",
-                  ).matches
-                    ? "instant"
-                    : "smooth",
-                  block: "center",
-                });
+                scrollToTarget(returnTarget.current);
               }}
             >
               Закрыть источник

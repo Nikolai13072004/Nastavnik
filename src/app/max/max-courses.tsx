@@ -9,6 +9,7 @@ import { MaxCourseKnowledge } from "./max-course-knowledge";
 import { MaxCourseDocuments } from "./max-course-documents";
 import { MaxManagerReport } from "./max-manager-report";
 import { DEMO_COURSES, DEMO_COURSE_DETAILS } from "./max-demo-data";
+import { scrollToTarget } from "./scroll-to-target";
 
 type CourseState =
   | { kind: "loading" }
@@ -52,6 +53,14 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCou
   const [refreshMessage, setRefreshMessage] = useState("");
   const [confirmMaterialId, setConfirmMaterialId] = useState<string | null>(null);
   const handledLaunch = useRef<string | undefined>(undefined);
+  const courseHeading = useRef<HTMLHeadingElement | null>(null);
+  const courseButtons = useRef(new Map<string, HTMLButtonElement>());
+  const returnCourseId = useRef<string | null>(null);
+  const openedCourseId = detail?.id;
+
+  useEffect(() => {
+    if (openedCourseId) scrollToTarget(courseHeading.current);
+  }, [openedCourseId]);
 
   useEffect(() => {
     if (designPreview) {
@@ -114,6 +123,7 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCou
   }, [token, refreshKey, initialCourseId, designPreview]);
 
   async function openCourse(courseId: string) {
+    returnCourseId.current = courseId;
     if (designPreview) {
       setDetail(demoCourse(courseId));
       setConfirmMaterialId(null);
@@ -189,8 +199,11 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCou
           setDetail(null);
           setDetailMessage("");
           setConfirmMaterialId(null);
+          window.requestAnimationFrame(() => {
+            scrollToTarget(courseButtons.current.get(returnCourseId.current ?? "") ?? null);
+          });
         }}>К моим курсам</button>
-        <h3>{detail.title}</h3>
+        <h3 ref={courseHeading} tabIndex={-1} className={styles.courseHeading}>{detail.title}</h3>
         {detail.dueAt && <p>Пройти до: {new Date(detail.dueAt).toLocaleString("ru-RU")}. Срок обучения не закрывает доступ к материалам.</p>}
         {detail.completed && <p className={styles.courseCompletion} role="status">
           {designPreview ? "Пример завершённого курса." : "Курс завершён. Результат сохранён."}
@@ -228,9 +241,11 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCou
             </>}
           </section>)}
         </> : <>
-        <MaxCourseDocuments key={`documents:${detail.id}`} courseId={detail.id} token={token} onRenew={onRenew} />
+        <MaxCourseDocuments key={`documents:${detail.id}`} courseId={detail.id} token={token}
+          onRenew={onRenew} />
         {knowledgeCourseId === detail.id
-          ? <MaxCourseKnowledge key={`knowledge:${detail.id}`} courseId={detail.id} token={token} onRenew={onRenew} />
+          ? <MaxCourseKnowledge key={`knowledge:${detail.id}`} courseId={detail.id} token={token}
+              onRenew={onRenew} />
           : <MaxCourseSearch key={`search:${detail.id}`} courseId={detail.id} token={token} onRenew={onRenew} />}
         {detail.quizzes.map((quiz) => <MaxQuiz key={quiz.id} token={token} courseId={detail.id} quiz={quiz}
           onResult={(result) => {
@@ -254,7 +269,12 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCou
           .map((course) => <li key={course.id}>
           <h3>{course.title}</h3>
           <p>{course.expiresAt ? `Доступ до ${new Date(course.expiresAt).toLocaleString("ru-RU")}` : "Без ограничения срока"}</p>
-          <button type="button" className={styles.retry} disabled={busy} onClick={() => void openCourse(course.id)}>Открыть курс</button>
+          <button type="button" className={styles.retry} disabled={busy}
+            ref={(element) => {
+              if (element) courseButtons.current.set(course.id, element);
+              else courseButtons.current.delete(course.id);
+            }}
+            onClick={() => void openCourse(course.id)}>Открыть курс</button>
         </li>)}</ul>)}
       {detailMessage && <p role="alert">{detailMessage}</p>}
       {!detail && <>

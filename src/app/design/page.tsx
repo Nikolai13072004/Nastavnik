@@ -25,7 +25,7 @@ export default async function DesignSystemPage() {
   return (
     <main className="mx-auto max-w-4xl space-y-8 px-4 py-8 text-[var(--ink)]">
       <header>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--accent)]">Smart LMS</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--accent)]">Наставник</p>
         <h1 className="mt-1 text-2xl font-semibold">Дизайн-система</h1>
         <p className="mt-1 text-sm text-[var(--ink-muted)]">
           Примитивы на токенах. Переключите тему в шапке, чтобы проверить обе.
