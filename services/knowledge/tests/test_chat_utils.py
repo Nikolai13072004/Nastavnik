@@ -5,6 +5,7 @@ from src.chat_utils import (
     is_correction,
     history_to_context,
     get_last_qa,
+    strip_internal_fragment_references,
 )
 
 
@@ -49,6 +50,20 @@ def test_history_helpers():
     assert "Ассистент: RAG" in ctx
     assert question == "Что такое RAG?"
     assert answer.startswith("RAG")
+
+
+def test_internal_fragment_reference_is_not_shown_as_a_source():
+    answer = "Согласно таблице значений из фрагмента 2: результат равен 8."
+
+    assert strip_internal_fragment_references(answer) == (
+        "Согласно таблице значений из документа: результат равен 8."
+    )
+    assert strip_internal_fragment_references("В фрагменте 1 указано условие.") == (
+        "В документе указано условие."
+    )
+    assert strip_internal_fragment_references("В разделе 2 указано условие.") == (
+        "В разделе 2 указано условие."
+    )
 
 # --- Поправка на ложную предпосылку не должна выглядеть как отказ ----------
 #

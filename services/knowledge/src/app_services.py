@@ -109,6 +109,7 @@ from src.chat_utils import (
     is_provider_filter,
     is_refusal,
     strip_refusal_prefix,
+    strip_internal_fragment_references,
 )
 from src.answer_guard import guard_answer
 from src.diagnostics import (
@@ -3023,7 +3024,7 @@ def chat_service(
         # Ответ не отказ, но модель могла начать его словами «НЕТ ИНФОРМАЦИИ»
         # перед тем, как назвать фактическое (см. strip_refusal_prefix).
         answer = strip_refusal_prefix(answer)
-    answer = _normalize_dashes(answer)
+    answer = _normalize_dashes(strip_internal_fragment_references(answer))
 
     quota.record_usage(workspace_id, quota.ACTION_CHAT, user_id=user_id, meta={"answer_mode": request.answer_mode})
 
@@ -3183,7 +3184,7 @@ def chat_stream_service(
         # Ответ не отказ, но модель могла начать его словами «НЕТ ИНФОРМАЦИИ»
         # перед тем, как назвать фактическое (см. strip_refusal_prefix).
         answer = strip_refusal_prefix(answer)
-    answer = _normalize_dashes(answer)
+    answer = _normalize_dashes(strip_internal_fragment_references(answer))
 
     # Do not expose unvalidated or unformatted model tokens.
     if answer:

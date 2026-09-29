@@ -78,6 +78,22 @@ def test_stream_generate_streams_tokens_then_done(authed_client, monkeypatch):
 
 
 @pytest.mark.parametrize("endpoint", ["/api/chat", "/api/chat/stream"])
+def test_chat_hides_internal_fragment_number(authed_client, monkeypatch, endpoint):
+    monkeypatch.setattr(app_services.runtime, "get_kb", lambda: _ChatKB())
+    monkeypatch.setattr(
+        app_services.runtime,
+        "get_llm",
+        lambda: _StreamLLM(["Согласно таблице из фрагмента 2: результат 8."]),
+    )
+
+    response = authed_client.post(endpoint, json={"message": "Чему равен результат?"})
+    result = _events(response)[-1] if endpoint.endswith("stream") else response.json()
+
+    assert result["answer"] == "Согласно таблице из документа: результат 8."
+    assert result["sources"][0]["source_file"] == "a.pdf"
+
+
+@pytest.mark.parametrize("endpoint", ["/api/chat", "/api/chat/stream"])
 def test_broad_context_refusal_retries_three_passages(authed_client, monkeypatch, endpoint):
     class KB(_ChatKB):
         def search_with_sources(self, query, file_filter="all", section_filter=None, workspace_id=None):
