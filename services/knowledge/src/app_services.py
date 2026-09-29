@@ -2532,6 +2532,9 @@ class _ChatPlan:
     followup_suggestions: list = field(default_factory=list)
     grouped_sources: list = field(default_factory=list)
     full_prompt: str = ""
+    focused_prompt: str = ""
+    focused_context: str = ""
+    focused_sources: list = field(default_factory=list)
     history: list = field(default_factory=list)
     # Контекст, который реально ушёл в модель. Нужен снаружи (evals): без него
     # приходилось искать заново, а повторный поиск идёт БЕЗ отката по
@@ -2803,6 +2806,9 @@ def _prepare_chat(workspace_id: str, request: ChatRequest, *, allowed_document_i
         "Только цитаты": "quotes_only",
     }.get(request.answer_mode, "qa")
 
+    focused_prompt = ""
+    focused_context = ""
+    focused_sources = []
     if is_corr and prev_question and prev_answer:
         full_prompt = config.PROMPTS["correction"].format(
             system=config.SYSTEM_PROMPT,
@@ -2836,12 +2842,35 @@ def _prepare_chat(workspace_id: str, request: ChatRequest, *, allowed_document_i
                 ),
             )
 
+        if prompt_key == "qa" and len(raw_sources) > 3:
+            # A broad context can bury a relevant first passage. Only retry a
+            # refusal with the three leading passages; never discard the broad
+            # answer or invent a response when the focused pass also refuses.
+            focused_context = "\n\n---\n\n".join(context.split("\n\n---\n\n")[:3])
+            focused_sources = _group_chat_sources(
+                raw_sources[:3], selected_file=selected_file
+            )
+            focused_input = (
+                "<document_context trust=\"untrusted\">\n"
+                f"{focused_context}\n</document_context>"
+            )
+            if history_ctx:
+                focused_input = f"ПРЕДЫДУЩИЙ ДИАЛОГ:\n{history_ctx}\n\n{focused_input}"
+            focused_prompt = config.PROMPTS[prompt_key].format(
+                system=config.SYSTEM_PROMPT,
+                topic=message,
+                context=focused_input,
+            )
+
     return _ChatPlan(
         kind="generate",
         message=message,
         selected_file=selected_file,
         grouped_sources=grouped_sources,
         full_prompt=full_prompt,
+        focused_prompt=focused_prompt,
+        focused_context=focused_context,
+        focused_sources=focused_sources,
         history=history,
         context=context,
     )
@@ -2859,6 +2888,26 @@ def _normalize_dashes(text: str) -> str:
     if not text:
         return text
     return text.replace("—", "-").replace("–", "-")
+
+
+def _retry_refusal_with_focused_context(plan: _ChatPlan, llm):
+    """Try the strongest passages once after an unsupported broad-context refusal."""
+    if not plan.focused_prompt:
+        return None
+    try:
+        answer = llm.call(plan.focused_prompt)
+    except Exception:
+        logger.exception("focused chat retry failed")
+        return None
+    guarded = guard_answer(
+        question=plan.message,
+        context=plan.focused_context,
+        answer=answer,
+    )
+    if is_provider_filter(guarded.answer) or is_refusal(guarded.answer):
+        return None
+    sources = plan.focused_sources if guarded.allow_sources else []
+    return guarded.answer, sources
 
 
 def chat_service(
@@ -2955,11 +3004,12 @@ def chat_service(
             guarded.reason or "corrected",
             workspace_id,
         )
-    # A refusal means the retrieved passages did *not* support an answer, so the
-    # sources that fed the prompt must not be shown: listing them under "ничего
-    # не найдено" reads as if something *was* found, which is exactly the
-    # promise ("ответы, а не выдумки") this product is built on.
+    # Show only sources used for the accepted answer. A refusal carries none.
     sources = plan.grouped_sources if guarded.allow_sources else []
+    if is_refusal(answer):
+        focused = _retry_refusal_with_focused_context(plan, llm)
+        if focused is not None:
+            answer, sources = focused
     if is_provider_filter(answer):
         # Ответ подменён фильтром провайдера (см. chat_utils). Показывать эту
         # отписку со ссылками на документ нельзя: человек примет реквизиты
@@ -3114,12 +3164,12 @@ def chat_stream_service(
             guarded.reason or "corrected",
             workspace_id,
         )
-    # Do not expose unvalidated model tokens.  Once the complete answer passed
-    # the deterministic guard, send it as one token followed by the final event.
-    if answer:
-        yield _ndjson({"type": "token", "text": answer})
-    # Same rule as the sync path: a refusal ships no sources (see chat_service).
     sources = plan.grouped_sources if guarded.allow_sources else []
+    if is_refusal(answer):
+        focused = _retry_refusal_with_focused_context(plan, llm)
+        if focused is not None:
+            answer, sources = focused
+    # Same rule as the sync path: a refusal ships no sources (see chat_service).
     if is_provider_filter(answer):
         # Ответ подменён фильтром провайдера (см. chat_utils). Показывать эту
         # отписку со ссылками на документ нельзя: человек примет реквизиты
@@ -3133,6 +3183,11 @@ def chat_stream_service(
         # Ответ не отказ, но модель могла начать его словами «НЕТ ИНФОРМАЦИИ»
         # перед тем, как назвать фактическое (см. strip_refusal_prefix).
         answer = strip_refusal_prefix(answer)
+    answer = _normalize_dashes(answer)
+
+    # Do not expose unvalidated or unformatted model tokens.
+    if answer:
+        yield _ndjson({"type": "token", "text": answer})
 
     # Meter only after the full answer is in hand (skipped on abort/disconnect,
     # since the generator is closed before reaching here).
