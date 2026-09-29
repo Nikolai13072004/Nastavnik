@@ -4,6 +4,7 @@ import { MaxLaunch } from "./max-launch";
 
 export const metadata: Metadata = {
   title: "Наставник - обучение в MAX",
+  icons: { icon: "/branding/nastavnik-avatar.png" },
   robots: { index: false, follow: false },
 };
 

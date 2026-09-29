@@ -1,0 +1,4 @@
+# Team test release. Apply after the live knowledge service overlays.
+services:
+  backend:
+    image: nastavnik-knowledge:ab19d652986a

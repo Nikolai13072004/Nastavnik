@@ -1,0 +1,11 @@
+# Dedicated ranges keep isolated review launches working when Docker's
+# automatic subnet pool is occupied by earlier stopped review projects.
+networks:
+  backend:
+    ipam:
+      config:
+        - subnet: ${REVIEW_BACKEND_SUBNET:-10.240.12.0/24}
+  browser:
+    ipam:
+      config:
+        - subnet: ${REVIEW_BROWSER_SUBNET:-10.240.13.0/24}

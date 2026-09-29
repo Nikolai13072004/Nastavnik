@@ -1,0 +1,5 @@
+services:
+  web:
+    image: nastavnik-app:link-ui-20260928
+  worker:
+    image: nastavnik-app:link-ui-20260928

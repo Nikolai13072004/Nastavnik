@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import Script from "next/script";
 import { Button, MaxUI, Spinner, Typography } from "@maxhub/max-ui";
 import "@maxhub/max-ui/dist/styles.css";
@@ -103,7 +104,16 @@ export function MaxLaunch({ showLmsLinks = false, knowledgeCourseId, botUsername
   }, [designPreview]);
 
   if (!mounted) {
-    return <main className={styles.boot} aria-label="Загрузка Наставника"><span className={styles.brandMark}>Н</span></main>;
+    return <main className={styles.boot} aria-label="Загрузка Наставника">
+      <Image
+        className={styles.brandMark}
+        src="/branding/nastavnik-avatar.png"
+        alt=""
+        width={36}
+        height={36}
+        unoptimized
+      />
+    </main>;
   }
 
   const status = state.kind === "loading"
@@ -124,7 +134,14 @@ export function MaxLaunch({ showLmsLinks = false, knowledgeCourseId, botUsername
         onError={() => setState({ kind: "error", message: "Не удалось подключиться к MAX. Проверьте соединение и откройте приложение повторно." })} />}
       <header className={styles.header}>
         <div className={styles.brandLockup}>
-          <span className={styles.brandMark} aria-hidden>Н</span>
+          <Image
+            className={styles.brandMark}
+            src="/branding/nastavnik-avatar.png"
+            alt=""
+            width={36}
+            height={36}
+            unoptimized
+          />
           <span className={styles.brand}>Наставник <small>Обучение в MAX</small></span>
         </div>
         <span className={styles.preview}>{designPreview ? "Просмотр дизайна" : "MAX Mini App"}</span>

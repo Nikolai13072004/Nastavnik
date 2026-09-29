@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://prodigy-max.45-139-78-17.sslip.io/api/max"
+      "url": "https://nastavnik.45-139-78-17.sslip.io/api/max"
     }
   ],
   "security": [
