@@ -20,7 +20,8 @@
 !scripts/import-max-demo-document.ts
 !scripts/max-knowledge-mapping.ts
 public/uploads
-public/branding
+public/branding/*
+!public/branding/nastavnik-avatar.png
 **/.env*
 **/*.pem
 **/*.key

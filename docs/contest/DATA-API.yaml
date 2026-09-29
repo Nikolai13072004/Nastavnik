@@ -1,6 +1,6 @@
 schema_version: '1.0'
 solution: Наставник
-base_url: https://prodigy-max.45-139-78-17.sslip.io/api/max
+base_url: https://nastavnik.45-139-78-17.sslip.io/api/max
 openapi: openapi.json
 test_data: test-data.json
 description: Проверки основного сценария на вымышленных данных. Схема команды по полям ТЗ, не опубликованная схема платформы организаторов.
@@ -11,7 +11,7 @@ authentication:
   roles:
     learner: Отдельный сотрудник демонстрационной организации с назначенным курсом
     hr: Отдельный HR той же демонстрационной организации
-  secret_delivery: Личные коды и необходимые ключи передаются проверяющим отдельно от Git
+  secret_delivery: Демонстрационные коды жюри приведены в JURY_GUIDE.md; интеграционные ключи и рабочие коды не публикуются
 variables:
   COURSE_ID: max-pilot-onboarding-course
   MATERIAL_ID: max-pilot-onboarding-material

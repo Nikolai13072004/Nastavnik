@@ -1,0 +1,5 @@
+services:
+  web:
+    image: nastavnik-app:ui-color-20260929
+  worker:
+    image: nastavnik-app:ui-color-20260929

@@ -1,0 +1,3 @@
+services:
+  web:
+    image: nastavnik-app:avatar-20260930

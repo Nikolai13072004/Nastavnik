@@ -1,0 +1,8 @@
+# Team test release. Apply after the live pilot overlays.
+services:
+  web:
+    image: nastavnik-app:ab19d652986a
+  worker:
+    image: nastavnik-app:ab19d652986a
+  migrate:
+    image: nastavnik-app:ab19d652986a

@@ -74,6 +74,7 @@ next-env.d.ts
 /data/uploads/
 /public/branding/*
 !/public/branding/.gitkeep
+!/public/branding/nastavnik-avatar.png
 /data/storage-tmp/
 /services/knowledge/data/
 /services/knowledge/evals/reports/

@@ -1,0 +1,8 @@
+services:
+  gateway:
+    labels:
+      traefik.http.routers.nastavnik-public.rule: "Host(`nastavnik.45-139-78-17.sslip.io`)"
+      traefik.http.routers.nastavnik-public.entrypoints: https
+      traefik.http.routers.nastavnik-public.tls: "true"
+      traefik.http.routers.nastavnik-public.tls.certresolver: letsencrypt
+      traefik.http.routers.nastavnik-public.service: prodigy-max-pilot
