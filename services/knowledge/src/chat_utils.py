@@ -2,6 +2,8 @@
 chat_utils.py - вспомогательные функции для обработки сообщений и истории чата.
 """
 
+import re
+
 REFUSAL_PHRASES = [
     "нет информации", "не упоминается", "не содержит",
     "не могу найти", "отсутствует", "нет данных",
@@ -28,6 +30,32 @@ CORRECTION_PHRASES = [
 GREETING_PHRASES = [
     "привет", "здравствуй", "добрый", "hi", "hello",
 ]
+
+_INTERNAL_FRAGMENT_REFERENCE = re.compile(
+    r"\b(?P<preposition>из|в|во|по|согласно)\s+фрагмент(?:а|е|у|ом)?\s+\d+\b",
+    re.IGNORECASE,
+)
+_DOCUMENT_REFERENCE = {
+    "из": "из документа",
+    "в": "в документе",
+    "во": "в документе",
+    "по": "по документу",
+    "согласно": "согласно документу",
+}
+
+
+def strip_internal_fragment_references(text):
+    """Replace internal retrieval labels with a document reference.
+
+    The UI renders the actual file and page separately; a generated
+    "fragment 2" label is not a stable or clickable source reference.
+    """
+    def replace(match):
+        preposition = match.group("preposition")
+        reference = _DOCUMENT_REFERENCE[preposition.casefold()]
+        return reference.capitalize() if preposition[0].isupper() else reference
+
+    return _INTERNAL_FRAGMENT_REFERENCE.sub(replace, text or "")
 
 
 def extract_content(msg):

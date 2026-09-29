@@ -77,6 +77,73 @@ def test_stream_generate_streams_tokens_then_done(authed_client, monkeypatch):
     assert done["history"][-1] == {"role": "assistant", "content": "Это ответ."}
 
 
+@pytest.mark.parametrize("endpoint", ["/api/chat", "/api/chat/stream"])
+def test_chat_hides_internal_fragment_number(authed_client, monkeypatch, endpoint):
+    monkeypatch.setattr(app_services.runtime, "get_kb", lambda: _ChatKB())
+    monkeypatch.setattr(
+        app_services.runtime,
+        "get_llm",
+        lambda: _StreamLLM(["Согласно таблице из фрагмента 2: результат 8."]),
+    )
+
+    response = authed_client.post(endpoint, json={"message": "Чему равен результат?"})
+    result = _events(response)[-1] if endpoint.endswith("stream") else response.json()
+
+    assert result["answer"] == "Согласно таблице из документа: результат 8."
+    assert result["sources"][0]["source_file"] == "a.pdf"
+
+
+@pytest.mark.parametrize("endpoint", ["/api/chat", "/api/chat/stream"])
+def test_broad_context_refusal_retries_three_passages(authed_client, monkeypatch, endpoint):
+    class KB(_ChatKB):
+        def search_with_sources(self, query, file_filter="all", section_filter=None, workspace_id=None):
+            context = "\n\n---\n\n".join(f"[Фрагмент {index}] Текст {index}." for index in range(1, 5))
+            sources = [
+                {"source_file": f"source-{index}.txt", "section": "", "score": 0.9, "text": f"Текст {index}."}
+                for index in range(1, 5)
+            ]
+            return context, sources
+
+    class LLM:
+        def call(self, prompt, temperature=None, max_tokens=None):
+            return "Нет информации" if "Фрагмент 4" in prompt else "Ответ из первого источника."
+
+        def stream(self, prompt, temperature=None, max_tokens=None):
+            yield self.call(prompt)
+
+    monkeypatch.setattr(app_services.runtime, "get_kb", lambda: KB())
+    monkeypatch.setattr(app_services.runtime, "get_llm", lambda: LLM())
+
+    response = authed_client.post(endpoint, json={"message": "Что сказано в первом источнике?"})
+    result = _events(response)[-1] if endpoint.endswith("stream") else response.json()
+
+    assert result["answer"] == "Ответ из первого источника."
+    assert [source["source_file"] for source in result["sources"]] == [
+        "source-1.txt", "source-2.txt", "source-3.txt"
+    ]
+
+
+@pytest.mark.parametrize("endpoint", ["/api/chat", "/api/chat/stream"])
+def test_focused_retry_preserves_refusal_when_no_passage_answers(authed_client, monkeypatch, endpoint):
+    class KB(_ChatKB):
+        def search_with_sources(self, query, file_filter="all", section_filter=None, workspace_id=None):
+            context = "\n\n---\n\n".join(f"[Фрагмент {index}] Другая тема." for index in range(1, 5))
+            sources = [
+                {"source_file": f"source-{index}.txt", "section": "", "score": 0.9, "text": "Другая тема."}
+                for index in range(1, 5)
+            ]
+            return context, sources
+
+    monkeypatch.setattr(app_services.runtime, "get_kb", lambda: KB())
+    monkeypatch.setattr(app_services.runtime, "get_llm", lambda: _StreamLLM(["Нет информации"]))
+
+    response = authed_client.post(endpoint, json={"message": "Что сказано о другой теме?"})
+    result = _events(response)[-1] if endpoint.endswith("stream") else response.json()
+
+    assert "не найдена" in result["answer"]
+    assert result["sources"] == []
+
+
 def test_stream_normalizes_em_dash_to_hyphen(authed_client, monkeypatch):
     """Bot answers print a plain hyphen — live tokens and the final answer alike."""
     monkeypatch.setattr(app_services.runtime, "get_kb", lambda: _ChatKB())
