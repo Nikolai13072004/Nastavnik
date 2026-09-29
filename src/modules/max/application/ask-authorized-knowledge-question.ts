@@ -6,7 +6,7 @@ export interface KnowledgeAuthorization {
 }
 
 export interface KnowledgeService {
-  ask(organizationId: string, courseId: string, question: string): Promise<KnowledgeAnswer>;
+  ask(organizationId: string, courseId: string, question: string, documentIds?: string[]): Promise<KnowledgeAnswer>;
 }
 
 export function createAskAuthorizedKnowledgeQuestion(
@@ -17,7 +17,7 @@ export function createAskAuthorizedKnowledgeQuestion(
     const approvedBefore = await authorization.list(identity, courseId);
     if (!approvedBefore?.length) return null;
 
-    const answer = await service.ask(identity.organizationId, courseId, question);
+    const answer = await service.ask(identity.organizationId, courseId, question, approvedBefore.map(({ id }) => id));
 
     // Access, the published course, or an approved document may change while Vedomo is answering.
     const approvedAfter = await authorization.list(identity, courseId);

@@ -1,8 +1,9 @@
 import "server-only";
 
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { putBufferDedup } from "@/lib/storage/dedup";
 import { getPermissionsForRoleNames } from "@/lib/role-profiles";
 import { PERMISSIONS } from "@/lib/roles";
 import { resolveEnrollmentAccess } from "@/modules/enrollment/domain/enrollment-access";
@@ -124,6 +125,16 @@ export const prismaMaxCourseDocuments: MaxDocumentCommands = {
         where: { supersedesId: previous.id }, select: { id: true },
       })) return "CONFLICT" as const;
 
+      const extension = draft.sourceName.split(".").at(-1)!.toLowerCase();
+      const original = draft.originalBytes
+        ? await putBufferDedup("uploads", `max-documents/${randomUUID()}.${extension}`, draft.originalBytes, {
+          originalName: draft.sourceName,
+          mimeType: extension === "pdf" ? "application/pdf" : "text/plain;charset=utf-8",
+          purpose: "max-course-document",
+          extension,
+        })
+        : null;
+      // Shared bytes must survive a failed document transaction.
       const document = await client.maxCourseDocument.create({
         data: {
           organizationId: identity.organizationId,
@@ -132,6 +143,9 @@ export const prismaMaxCourseDocuments: MaxDocumentCommands = {
           sourceName: draft.sourceName,
           contentText: draft.contentText,
           contentHash: createHash("sha256").update(draft.contentText).digest("hex"),
+          originalKey: original?.object.key,
+          originalHash: original?.sha256,
+          originalSize: original?.sizeBytes,
           supersedesId: previous?.id,
           versionNumber: previous ? previous.versionNumber + 1 : 1,
           changeSummary: draft.changeSummary,
@@ -332,6 +346,7 @@ export async function readMaxPublishedDocument(organizationId: string, courseId:
   return prisma.maxCourseDocument.findFirst({
     where: { id: documentId, organizationId, courseId, approvedAt: { not: null }, revokedAt: null },
     select: { id: true, title: true, sourceName: true, contentText: true, contentHash: true,
+      originalKey: true, originalHash: true, originalSize: true,
       supersedesId: true, versionNumber: true, changeSummary: true, checkQuestion: true,
       checkOptionsJson: true,
       trainingRecipients: { where: { userId }, select: { viewedAt: true, passedAt: true, attempts: true } } },
@@ -343,6 +358,7 @@ export async function readMaxManagerDocument(identity: MaxLearnerIdentity, cours
   return prisma.maxCourseDocument.findFirst({
     where: { id: documentId, organizationId: identity.organizationId, courseId },
     select: { id: true, title: true, sourceName: true, contentText: true, contentHash: true,
+      originalKey: true, originalHash: true, originalSize: true,
       supersedesId: true, versionNumber: true, changeSummary: true, checkQuestion: true,
       checkOptionsJson: true, checkCorrectIndex: true },
   });

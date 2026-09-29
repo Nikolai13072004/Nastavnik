@@ -24,7 +24,7 @@ export const prismaMaxKnowledgeDocuments: MaxKnowledgeDocumentRepository = {
       select: {
         vedomoDocumentId: true,
         vedomoDocumentHash: true,
-        courseDocument: { select: { id: true, contentText: true, contentHash: true } },
+        courseDocument: { select: { id: true, title: true, contentText: true, contentHash: true } },
       },
     });
     return documents.flatMap((document) => {
@@ -37,6 +37,7 @@ export const prismaMaxKnowledgeDocuments: MaxKnowledgeDocumentRepository = {
         contentHash: document.vedomoDocumentHash,
         contentText: document.courseDocument.contentText,
         courseDocumentId: document.courseDocument.id,
+        title: document.courseDocument.title,
       }];
     });
   },

@@ -61,3 +61,54 @@ test("lost HR access or changed publication during lookup fails closed", async (
     assert.equal(await connect(identity, "course-1", "document-1"), result);
   }
 });
+
+test("imports only the authorized prepared text and approves the ready source", async () => {
+  const connect = createConnectKnowledgeDocument({
+    load: async () => ({ ...document, sourceName: "policy.pdf", contentText: "Approved text" }),
+    approve: async (...args) => {
+      assert.deepEqual(args, [identity, "course-1", "document-1", source, "snapshot-v1"]);
+      return "APPROVED";
+    },
+  }, {
+    findDocument: async () => { throw new Error("must use import"); },
+    importDocument: async (...args) => {
+      assert.deepEqual(args, ["org-1", "course-1", {
+        sourceName: "max-source-document-1.txt", contentText: "Approved text",
+        contentHash: document.contentHash, retry: true,
+      }]);
+      return { status: "READY", ...source };
+    },
+  });
+  assert.equal(await connect(identity, "course-1", "document-1", true), "APPROVED");
+});
+
+test("processing, busy and failed indexes never create approved mappings", async () => {
+  for (const [status, result] of [["PROCESSING", "PROCESSING"], ["BUSY", "SOURCE_BUSY"],
+    ["ERROR", "INDEXING_FAILED"]] as const) {
+    const connect = createConnectKnowledgeDocument({
+      load: async () => ({ ...document, contentText: "Approved text" }),
+      approve: async () => { throw new Error("must not approve partial index"); },
+    }, {
+      findDocument: async () => null,
+      importDocument: async () => ({ status, documentHash: document.contentHash }),
+    });
+    assert.equal(await connect(identity, "course-1", "document-1"), result);
+  }
+});
+
+test("a wrong imported hash or publication change fails closed", async () => {
+  const repository: KnowledgeConnectionRepository = {
+    load: async () => ({ ...document, contentText: "Approved text" }),
+    approve: async () => "NOT_APPROVED",
+  };
+  const stale = createConnectKnowledgeDocument(repository, {
+    findDocument: async () => null,
+    importDocument: async () => ({ status: "READY", ...source }),
+  });
+  assert.equal(await stale(identity, "course-1", "document-1"), "NOT_APPROVED");
+  const wrong = createConnectKnowledgeDocument(repository, {
+    findDocument: async () => null,
+    importDocument: async () => ({ status: "READY", ...source, documentHash: "b".repeat(64) }),
+  });
+  assert.equal(await wrong(identity, "course-1", "document-1"), "HASH_MISMATCH");
+});

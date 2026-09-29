@@ -7,6 +7,7 @@ export type MaxDocumentDraft = {
   title: string;
   sourceName: string;
   contentText: string;
+  originalBytes?: Buffer;
   supersedesId?: string;
   changeSummary?: string;
   checkQuestion?: string;
@@ -28,6 +29,7 @@ export function createManageMaxDocuments(repository: MaxDocumentCommands) {
         title: input.title.trim(),
         sourceName: input.sourceName.trim(),
         contentText: input.contentText.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n").trim(),
+        originalBytes: input.originalBytes,
         supersedesId: input.supersedesId?.trim(),
         changeSummary: input.changeSummary?.trim(),
         checkQuestion: input.checkQuestion?.trim(),
@@ -36,8 +38,11 @@ export function createManageMaxDocuments(repository: MaxDocumentCommands) {
       };
       if (!draft.courseId || draft.courseId.length > 128 || !draft.title || draft.title.length > 120 ||
           !draft.sourceName || draft.sourceName.length > 120 ||
+          /[\\/\u0000-\u001F\u007F\uD800-\uDFFF]/u.test(draft.sourceName) ||
           !/\.(txt|md|pdf)$/i.test(draft.sourceName) || /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFD]/u.test(draft.contentText) ||
           !draft.contentText || Buffer.byteLength(draft.contentText, "utf8") > MAX_DOCUMENT_BYTES ||
+          (draft.originalBytes && (!Buffer.isBuffer(draft.originalBytes) || draft.originalBytes.length === 0 ||
+            draft.originalBytes.length > (/\.pdf$/i.test(draft.sourceName) ? 512 * 1024 : MAX_DOCUMENT_BYTES))) ||
           (draft.supersedesId ? (
             draft.supersedesId.length > 128 || !draft.changeSummary || draft.changeSummary.length > 500 ||
             !draft.checkQuestion || draft.checkQuestion.length > 240 ||

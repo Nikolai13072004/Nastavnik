@@ -1,8 +1,9 @@
 "use client";
 
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import styles from "./max.module.css";
 import { MaxDocumentText } from "./max-document-text";
+import { MaxDocumentDownload } from "./max-document-download";
 
 type DocumentRow = {
   id: string;
@@ -28,12 +29,28 @@ type Preview = {
   title: string;
   sourceName: string;
   contentText: string;
+  hasOriginal: boolean;
   changeSummary: string | null;
   checkQuestion: string | null;
   checkOptionsJson: string | null;
   checkCorrectIndex: number | null;
 };
 type Recipient = { id: string; name: string };
+
+function waitForIndex(signal: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    const abort = () => {
+      clearTimeout(timer);
+      reject(new DOMException("Connection cancelled", "AbortError"));
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", abort);
+      resolve();
+    }, 3000);
+    if (signal.aborted) abort();
+    else signal.addEventListener("abort", abort, { once: true });
+  });
+}
 
 function encodeFile(bytes: Uint8Array) {
   let base64 = "";
@@ -63,8 +80,16 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [aiConnectionEnabled, setAiConnectionEnabled] = useState(false);
+  const [aiImportEnabled, setAiImportEnabled] = useState(false);
   const [connectingId, setConnectingId] = useState<string | null>(null);
+  const connection = useRef<AbortController | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    setBusy(false);
+    setConnectingId(null);
+    return () => connection.current?.abort();
+  }, [courseId, token]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -78,11 +103,13 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
           signal: controller.signal,
         });
         if (!response.ok) throw new Error("Could not load documents");
-        const result: { documents: DocumentRow[]; audience: Recipient[] | null; aiConnectionEnabled: boolean } = await response.json();
+        const result: { documents: DocumentRow[]; audience: Recipient[] | null;
+          aiConnectionEnabled: boolean; aiImportEnabled?: boolean } = await response.json();
         if (active) {
           setDocuments(result.documents);
           setAudience(result.audience);
           setAiConnectionEnabled(result.aiConnectionEnabled);
+          setAiImportEnabled(result.aiImportEnabled === true);
         }
       } catch {
         if (active) setMessage("Не удалось загрузить документы. Обновите список позже.");
@@ -106,10 +133,8 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
       const revision = supersedesId ? {
         supersedesId, changeSummary, checkQuestion, checkOptions, checkCorrectIndex,
       } : {};
-      const body = isPdf
-        ? JSON.stringify({ courseId, title, sourceName: file.name, ...revision,
-          fileBase64: encodeFile(new Uint8Array(await file.arrayBuffer())) })
-        : JSON.stringify({ courseId, title, sourceName: file.name, ...revision, contentText: await file.text() });
+      const body = JSON.stringify({ courseId, title, sourceName: file.name, ...revision,
+        fileBase64: encodeFile(new Uint8Array(await file.arrayBuffer())) });
       if (new Blob([body]).size > (isPdf ? 720 : 48) * 1024) {
         setMessage("Файл слишком большой. Сократите документ и попробуйте снова.");
         return;
@@ -218,32 +243,53 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
     setBusy(true);
     setConnectingId(documentId);
     setMessage("");
+    const controller = new AbortController();
+    connection.current = controller;
     try {
-      const response = await fetch("/api/max/documents/knowledge", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ courseId, documentId }),
-        cache: "no-store",
-      });
-      if (response.status === 401) { onRenew(); return; }
-      const result: { status?: string } = await response.json().catch(() => ({}));
-      if (response.ok && result.status === "APPROVED") {
-        setMessage("Источник проверен и подключён к AI.");
-      } else if (result.status === "SOURCE_NOT_READY") {
-        setMessage("В Vedomo пока нет готового источника с таким текстом. В «Проверить текст» скачайте текст для AI и передайте администратору для загрузки в Vedomo. После обработки повторите подключение.");
-      } else if (result.status === "UNSUPPORTED_FORMAT") {
-        setMessage("Для AI пока подходят .txt и .md. PDF можно читать в курсе, но подключить его этой кнопкой нельзя.");
-      } else if (response.status === 409) {
-        setMessage("Документ или его подключение изменились. Обновите список. Если в Vedomo есть копии одного текста, администратор должен проверить источник.");
-      } else {
-        setMessage("Не удалось подключить источник. Проверьте доступ и повторите позже.");
+      for (let attempt = 0; attempt < 40; attempt++) {
+        const response = await fetch("/api/max/documents/knowledge", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ courseId, documentId, ...(aiImportEnabled ? { retry: attempt === 0 } : {}) }),
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (response.status === 401) { onRenew(); return; }
+        const result: { status?: string } = await response.json().catch(() => ({}));
+        if (response.ok && result.status === "APPROVED") {
+          setMessage("Источник проверен и подключён к AI.");
+        } else if (result.status === "PROCESSING") {
+          setMessage("Готовим документ для AI. После обработки подключение сохранится автоматически.");
+          if (attempt < 39) {
+            await waitForIndex(controller.signal);
+            continue;
+          }
+          setMessage("Документ ещё обрабатывается. Можно уйти с экрана и позже нажать «Подключить к AI» ещё раз. Копия не создастся.");
+        } else if (result.status === "SOURCE_BUSY") {
+          setMessage("В этом курсе обрабатывается другой документ. Дождитесь завершения и повторите подключение.");
+        } else if (result.status === "INDEXING_FAILED") {
+          setMessage("Не удалось обработать источник. Повторите подключение позже. Сотрудникам документ доступен для чтения.");
+        } else if (result.status === "SOURCE_NOT_READY") {
+          setMessage("Источник ещё не готов для поиска. В «Проверить текст» скачайте текст для AI и передайте администратору. После обработки повторите подключение.");
+        } else if (result.status === "UNSUPPORTED_FORMAT") {
+          setMessage("Для AI пока подходят .txt и .md. PDF можно читать в курсе, но подключить его этой кнопкой нельзя.");
+        } else if (response.status === 409) {
+          setMessage("Документ или его подключение изменились. Обновите список. Если проблема повторится, попросите администратора проверить источник.");
+        } else {
+          setMessage("Не удалось подключить источник. Проверьте доступ и повторите позже.");
+        }
+        setRefreshKey((value) => value + 1);
+        break;
       }
-      setRefreshKey((value) => value + 1);
     } catch {
+      if (controller.signal.aborted) return;
       setMessage("Нет ответа от сервера. Обновите список, чтобы проверить результат подключения.");
     } finally {
-      setBusy(false);
-      setConnectingId(null);
+      if (connection.current === controller) {
+        connection.current = null;
+        setBusy(false);
+        setConnectingId(null);
+      }
     }
   }
 
@@ -264,7 +310,9 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
     <h3 id="max-manager-documents-title">Рабочие документы курса</h3>
     <p>Загрузите документ, проверьте текст и опубликуйте. Для новой редакции укажите, что изменилось, и подготовьте один вопрос. Черновики сотрудникам не видны. Не загружайте конфиденциальные документы на пилотный стенд.</p>
     <p>Публикация открывает документ для чтения. {aiConnectionEnabled
-      ? "В «Проверить текст» скачайте текст для AI и передайте администратору для загрузки в Vedomo. После обработки нажмите «Подключить к AI»."
+      ? aiImportEnabled
+        ? "После проверки и публикации нажмите «Подключить к AI». Проверенный текст передастся в поиск автоматически. Для PDF используется извлечённый текст, оригинал сохраняется отдельно."
+        : "В «Проверить текст» скачайте текст для AI и передайте администратору. После обработки нажмите «Подключить к AI»."
       : "AI для этого курса пока не настроен."}</p>
     <form onSubmit={(event) => void upload(event)}>
       <label className={styles.reportSelect}>Это новая редакция?
@@ -327,13 +375,14 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
         {!document.revokedAt && !document.approvedAt && document.supersedesId && <button type="button"
           className={styles.back} disabled={busy}
           onClick={() => setConfirmation({ id: document.id, publish: false })}>Удалить черновик</button>}
-        {aiConnectionEnabled && document.approvedAt && !document.revokedAt && /\.(txt|md)$/i.test(document.sourceName) && <button type="button"
+        {aiConnectionEnabled && document.approvedAt && !document.revokedAt &&
+          (aiImportEnabled || /\.(txt|md)$/i.test(document.sourceName)) && <button type="button"
           className={styles.back} disabled={busy} onClick={() => void connectSource(document.id)}>
-          {connectingId === document.id ? "Проверяем источник…" : document.aiConnected ? "Проверить подключение" : "Подключить к AI"}
+          {connectingId === document.id ? "Подключаем источник…" : document.aiConnected ? "Проверить подключение" : "Подключить к AI"}
         </button>}
       </div>
       {aiConnectionEnabled && document.approvedAt && !document.revokedAt && <p>
-        {!/\.(txt|md)$/i.test(document.sourceName) ? "Для AI пока подходят только .txt и .md. PDF доступен для чтения."
+        {!aiImportEnabled && !/\.(txt|md)$/i.test(document.sourceName) ? "Для AI пока подходят только .txt и .md. PDF доступен для чтения."
           : document.aiConnected ? "Подключение к AI сохранено." : "К AI не подключён."}
       </p>}
       {document.trainingRecipients.length > 0 && <details className={styles.documentTrainingReport}>
@@ -365,8 +414,10 @@ export function MaxManagerDocuments({ courseId, token, onRenew }: {
       <h4>{preview.title}</h4>
       {preview.changeSummary && <p>Изменение: {preview.changeSummary}</p>}
       <MaxDocumentText text={preview.contentText} />
-      {aiConnectionEnabled && /\.(txt|md)$/i.test(preview.sourceName) && <>
-        <p>Этот файл содержит проверяемый текст без изменений кодировки и переносов строк. Загрузите именно его в Vedomo.</p>
+      {preview.hasOriginal && <MaxDocumentDownload key={preview.id} courseId={courseId} manager
+        documentId={preview.id} sourceName={preview.sourceName} token={token} onRenew={onRenew} />}
+      {aiConnectionEnabled && !aiImportEnabled && /\.(txt|md)$/i.test(preview.sourceName) && <>
+        <p>Этот файл содержит проверяемый текст без изменений кодировки и переносов строк. Передайте администратору именно его.</p>
         <button type="button" className={styles.back} onClick={downloadPreparedText}>Скачать текст для AI</button>
       </>}
       <details>

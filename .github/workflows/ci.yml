@@ -126,6 +126,13 @@ jobs:
       - name: Установка зависимостей
         run: npm ci
 
+      - name: Инструменты для проверки PDF
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends poppler-utils
+          pdfinfo -v
+          pdftotext -v
+
       - name: Инфра-тесты на PostgreSQL
         env:
           INFRA_DATABASE_URL: postgresql://lms:test@localhost:5432/lmstest?schema=public

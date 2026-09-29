@@ -141,18 +141,19 @@ export function assertAttemptAvailable(args: {
   maxAttempts: number;
   retryDelayMinutes: number | null;
   now: Date;
+  practice?: boolean;
 }) {
-  if (args.completedAttempts.some((attempt) => attempt.outcome === "PASSED")) {
+  if (!args.practice && args.completedAttempts.some((attempt) => attempt.outcome === "PASSED")) {
     throw new AssessmentDomainError("ALREADY_PASSED", "Тест уже успешно сдан.");
   }
   if (args.completedAttempts.some((attempt) => attempt.outcome === "PENDING_REVIEW")) {
     throw new AssessmentDomainError("PENDING_REVIEW", "Тест уже отправлен на проверку.");
   }
-  if (args.completedAttempts.length >= Math.max(args.maxAttempts, 1)) {
+  if (!args.practice && args.completedAttempts.length >= Math.max(args.maxAttempts, 1)) {
     throw new AssessmentDomainError("ATTEMPTS_EXHAUSTED", "Попытки закончились.");
   }
 
-  if (args.retryDelayMinutes && args.retryDelayMinutes > 0) {
+  if (!args.practice && args.retryDelayMinutes && args.retryDelayMinutes > 0) {
     const latestFailure = args.completedAttempts
       .filter((attempt) => attempt.outcome === "FAILED")
       .sort((left, right) => right.completedAt.getTime() - left.completedAt.getTime())[0];

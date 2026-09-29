@@ -37,7 +37,8 @@ test("uses the linked organization and returns an answer with a source approved 
       assert.equal(courseId, "course-1");
       return approved;
     } },
-    { ask: async (organizationId, courseId, question) => {
+    { ask: async (organizationId, courseId, question, documentIds) => {
+      assert.deepEqual(documentIds, ["doc-1"]);
       calls.push(organizationId, courseId, question);
       return answer;
     } },

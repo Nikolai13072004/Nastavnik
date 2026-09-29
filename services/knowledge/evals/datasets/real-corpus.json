@@ -1,0 +1,83 @@
+{
+  "name": "real-corpus",
+  "description": "Боевой смешанный корпус из репозитория: операционное исчисление (Краснов) + два литературных текста (Пир Платона, Девочка со спичками). Ингестит файлы из docs/ во временный воркспейс. Последний кейс (фотосинтез) намеренно вне корпуса - он ДОЛЖЕН провалиться, это демонстрация того, как eval ловит вопросы не по материалам.",
+  "materials": [
+    "../../docs/Krasnov M.L. _Zadachi i reshenija - Operacionnoe ischislenie, 2003, 178s.pdf",
+    "../../docs/pir.txt",
+    "../../docs/The_Little_Match_Girl.txt"
+  ],
+  "cases": [
+    {
+      "id": "krasnov-laplace",
+      "question": "Что такое преобразование Лапласа?",
+      "expected_keywords": ["Лаплас"],
+      "expected_context": ["Лаплас"]
+    },
+    {
+      "id": "krasnov-original-image",
+      "question": "Что такое оригинал и изображение в операционном исчислении?",
+      "expected_keywords": ["оригинал", "изображени"],
+      "expected_context": ["оригинал"]
+    },
+    {
+      "id": "krasnov-delay-theorem",
+      "question": "Сформулируйте теорему запаздывания.",
+      "expected_keywords": ["запаздыван"],
+      "expected_context": ["запаздыван"]
+    },
+    {
+      "id": "krasnov-ode",
+      "question": "Как операционное исчисление помогает решать дифференциальные уравнения?",
+      "answer_mode": "Подробно",
+      "expected_keywords": ["дифференциальн", "уравнен"],
+      "expected_context": ["уравнен"]
+    },
+    {
+      "id": "pir-topic",
+      "question": "О чём произведение «Пир» Платона?",
+      "expected_keywords": ["любв"],
+      "expected_context": ["любв"]
+    },
+    {
+      "id": "pir-fedr",
+      "question": "Что говорит Федр в своей речи?",
+      "expected_keywords": ["Федр"],
+      "expected_context": ["Федр"]
+    },
+    {
+      "id": "pir-socrates",
+      "question": "Что Сократ говорит о любви?",
+      "expected_keywords": ["Сократ"],
+      "expected_context": ["Сократ"]
+    },
+    {
+      "id": "match-when",
+      "question": "Когда происходит действие рассказа «Девочка со спичками»?",
+      "expected_keywords": ["Новог"],
+      "expected_context": ["спич"]
+    },
+    {
+      "id": "match-grandmother",
+      "question": "Кто явился девочке, когда она зажгла спичку?",
+      "expected_keywords": ["бабушк"],
+      "expected_context": ["бабушк"]
+    },
+    {
+      "id": "match-visions",
+      "question": "Что девочка видела, зажигая спички?",
+      "expected_keywords": ["гус"],
+      "expected_context": ["гус"]
+    },
+    {
+      "id": "match-ending",
+      "question": "Чем закончился рассказ про девочку со спичками?",
+      "expected_keywords": [],
+      "expected_context": ["замерз"]
+    },
+    {
+      "id": "offtopic-photosynthesis",
+      "question": "Что такое фотосинтез?",
+      "expect_refusal": true
+    }
+  ]
+}

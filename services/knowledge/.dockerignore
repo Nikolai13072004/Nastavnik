@@ -1,0 +1,48 @@
+# Backend build context. Keep the image lean and never bake local state.
+.git
+.gitignore
+.github
+
+# Python local env / caches
+.venv
+venv
+env
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+
+# Runtime data — provided by mounted volumes at run time, never from the image
+data
+docs
+exports
+docs_test
+
+# Frontend lives in its own image
+frontend
+
+# Secrets and local docs
+.env
+.env.local
+.env.*
+*.env
+work
+.alert.env
+*.pem
+*.key
+backups
+.backup.lock
+output
+.playwright-cli
+*.md
+design
+screenshots
+sample_docs
+bob_stage6.txt
+
+# Editor / OS
+.idea
+.vscode
+.DS_Store
+Thumbs.db
+*.tsbuildinfo

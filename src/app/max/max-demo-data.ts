@@ -1,5 +1,4 @@
-// Локальные данные для дизайн-предпросмотра /max?preview=1.
-// Этот файл можно свободно менять: production-режим MAX его не использует.
+// Вымышленные данные для /max?preview=1 при MAX_DESIGN_PREVIEW=true.
 export const DEMO_COURSES = [
   { id: "demo-onboarding", title: "Добро пожаловать в компанию", expiresAt: null },
   { id: "demo-security", title: "Информационная безопасность", expiresAt: "2026-12-31T18:00:00.000Z" },
@@ -25,7 +24,16 @@ export const DEMO_COURSE_DETAILS = {
         completed: false,
       },
     ],
-    quizzes: [{ id: "demo-quiz-1", title: "Проверка знаний", description: "Небольшой тест по вводному курсу.", questionCount: 3, maxAttempts: 3, attemptsUsed: 0, status: "NOT_STARTED", bestCorrectAnswers: 0 }],
+    quizzes: [{
+      id: "demo-quiz-1",
+      title: "Проверка знаний",
+      description: "Небольшой тест по вводному курсу.",
+      questionCount: 3,
+      maxAttempts: 3,
+      attemptsUsed: 0,
+      status: "NOT_STARTED",
+      bestCorrectAnswers: 0,
+    }],
     hasUnsupportedItems: false,
   },
   "demo-security": {
@@ -33,8 +41,22 @@ export const DEMO_COURSE_DETAILS = {
     title: "Информационная безопасность",
     description: "Практические правила безопасной работы с корпоративными данными.",
     completed: true,
-    materials: [{ id: "demo-material-3", title: "Пароли и доступы", content: "<p>Используйте уникальные пароли и никогда не передавайте коды подтверждения другим людям.</p>", completed: true }],
-    quizzes: [{ id: "demo-quiz-2", title: "Итоговый тест", description: null, questionCount: 5, maxAttempts: 2, attemptsUsed: 1, status: "PASSED", bestCorrectAnswers: 5 }],
+    materials: [{
+      id: "demo-material-3",
+      title: "Пароли и доступы",
+      content: "<p>Используйте уникальные пароли и никогда не передавайте коды подтверждения другим людям.</p>",
+      completed: true,
+    }],
+    quizzes: [{
+      id: "demo-quiz-2",
+      title: "Итоговый тест",
+      description: null,
+      questionCount: 5,
+      maxAttempts: 2,
+      attemptsUsed: 1,
+      status: "PASSED",
+      bestCorrectAnswers: 5,
+    }],
     hasUnsupportedItems: false,
   },
 } as const;

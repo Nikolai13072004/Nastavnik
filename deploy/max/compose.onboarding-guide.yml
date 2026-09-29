@@ -1,0 +1,9 @@
+services:
+  web:
+    image: prodigy-max:onboarding-guide-20260927
+    environment:
+      MAX_DEMO_REPEAT_ENABLED: "true"
+  worker:
+    image: prodigy-max:onboarding-guide-20260927
+  migrate:
+    image: prodigy-max:onboarding-guide-20260927

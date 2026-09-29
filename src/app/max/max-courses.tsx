@@ -20,6 +20,7 @@ type CourseDetail = {
   title: string;
   description: string | null;
   completed: boolean;
+  dueAt?: string | null;
   materials: Array<{ id: string; title: string; content: string | null; completed: boolean }>;
   quizzes: MaxQuizSummary[];
   hasUnsupportedItems: boolean;
@@ -138,7 +139,7 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCou
   }
 
   async function completeMaterial(materialId: string) {
-    if (!detail) return;
+    if (!detail || designPreview) return;
     setBusy(true);
     setDetailMessage("");
     try {
@@ -190,14 +191,17 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCou
           setConfirmMaterialId(null);
         }}>К моим курсам</button>
         <h3>{detail.title}</h3>
+        {detail.dueAt && <p>Пройти до: {new Date(detail.dueAt).toLocaleString("ru-RU")}. Срок обучения не закрывает доступ к материалам.</p>}
         {detail.completed && <p className={styles.courseCompletion} role="status">
-          Курс завершён. Результат сохранён в Prodigy.
+          {designPreview ? "Пример завершённого курса." : "Курс завершён. Результат сохранён."}
         </p>}
         {detail.description && <p>{detail.description}</p>}
         {detail.materials.map((material) => <article key={material.id} className={styles.material}>
           <h4>{material.title}</h4>
           {material.content && <div className={styles.materialContent} dangerouslySetInnerHTML={{ __html: material.content }} />}
-          {material.completed ? <p className={styles.materialStatus}>Изучено. Материал можно перечитать в любое время.</p>
+          {designPreview ? <p className={styles.materialStatus}>
+            {material.completed ? "Пример изученного материала." : "Отметки о прохождении доступны в MAX."}
+          </p> : material.completed ? <p className={styles.materialStatus}>Изучено. Материал можно перечитать в любое время.</p>
             : confirmMaterialId === material.id ? <div className={styles.documentConfirm} aria-live="polite">
               <p>Вы прочитали материал? Подтверждение сохранит отметку о прохождении.</p>
               <button type="button" className={styles.retry} disabled={busy}
@@ -210,15 +214,18 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCou
         {designPreview ? <>
           <section className={styles.courseSearch} aria-label="Демо рабочих инструкций">
             <h4>Рабочие инструкции</h4>
-            <p>В реальном Mini App здесь доступны документы компании и поиск по базе знаний.</p>
-            <button type="button" className={styles.retry}>Открыть инструкции</button>
+            <p>Документы компании и поиск по базе знаний доступны в MAX. Здесь показан только дизайн.</p>
+            <button type="button" className={styles.retry} disabled>Открыть инструкции</button>
           </section>
           {detail.quizzes.map((quiz) => <section key={quiz.id} className={styles.quiz} aria-label={quiz.title}>
             <h4>{quiz.title}</h4>
             {quiz.description && <p>{quiz.description}</p>}
             <p>{quiz.status === "PASSED" ? `Сдано: ${quiz.bestCorrectAnswers} из ${quiz.questionCount} верно.`
-              : `Вопросов: ${quiz.questionCount} · попыток осталось: ${quiz.maxAttempts - quiz.attemptsUsed}`}</p>
-            {quiz.status !== "PASSED" && <button type="button" className={styles.retry}>Начать тест</button>}
+              : `Вопросов: ${quiz.questionCount}. Попыток осталось: ${quiz.maxAttempts - quiz.attemptsUsed}.`}</p>
+            {quiz.status !== "PASSED" && <>
+              <p>Для прохождения теста откройте приложение из MAX.</p>
+              <button type="button" className={styles.retry} disabled>Начать тест</button>
+            </>}
           </section>)}
         </> : <>
         <MaxCourseDocuments key={`documents:${detail.id}`} courseId={detail.id} token={token} onRenew={onRenew} />
@@ -231,7 +238,7 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCou
               ...current,
               quizzes: current.quizzes.map((item) => item.id === quiz.id ? {
                 ...item,
-                status: result.outcome,
+                status: item.status === "PASSED" ? "PASSED" : result.outcome,
                 attemptsUsed: item.attemptsUsed + 1,
                 bestCorrectAnswers: Math.max(item.bestCorrectAnswers, result.correctAnswers),
               } : item),
@@ -253,7 +260,7 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCou
       {!detail && <>
         <button type="button" className={styles.back} disabled={state.kind === "loading" || busy} onClick={() => {
           if (designPreview) {
-            setRefreshMessage("Демо-данные обновлены.");
+            setRefreshMessage("Показаны вымышленные данные для просмотра дизайна.");
             return;
           }
           if (state.kind === "error") { onRenew(); return; }
@@ -263,7 +270,7 @@ export function MaxCourses({ token, managerAccess, knowledgeCourseId, initialCou
         }}>{state.kind === "loading" ? "Загружаем курсы..." : state.kind === "error" ? "Повторить вход" : "Проверить новые курсы"}</button>
         {refreshMessage && <p role="status">{refreshMessage}</p>}
       </>}
-      {managerAccess && <MaxManagerReport token={token} onRenew={onRenew} />}
+      {managerAccess && !designPreview && <MaxManagerReport token={token} onRenew={onRenew} />}
     </section>
   );
 }

@@ -54,6 +54,7 @@ async function main() {
   assert.equal(documentResponse.status, 200);
   const document = (await documentResponse.json()).document;
   assert.equal(document.id, source.courseDocumentId);
+  assert.equal(source.title, document.title, "Source label must use the published HR title");
   assert.ok(document.contentText.length > 0);
   console.log("source document: exact file accessible");
 

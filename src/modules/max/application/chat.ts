@@ -35,6 +35,7 @@ export type ChatCourse = {
     questionCount: number;
     chatSupported: boolean;
     maxAttempts: number;
+    repeatable?: boolean;
     attemptsUsed: number;
     status: string;
     bestCorrectAnswers: number;
@@ -57,6 +58,7 @@ export type ChatState = {
   quizPaused?: boolean;
   documentIds?: string[];
   aiRequestedAt?: number[];
+  aiFeedback?: { question: string; result: KnowledgeAnswer };
   quiz?: ChatQuiz;
 };
 export interface ChatSessionRepository {
@@ -65,6 +67,7 @@ export interface ChatSessionRepository {
   clear(maxUserId: string): Promise<void>;
 }
 export interface ChatLearning {
+  report?(identity: MaxLearnerIdentity, courseId: string, question: string, result: KnowledgeAnswer): Promise<void>;
   course(identity: MaxLearnerIdentity, courseId: string): Promise<ChatCourse>;
   ask(
     identity: MaxLearnerIdentity,

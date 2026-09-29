@@ -43,12 +43,9 @@ if (files.length === 0) {
 
 console.log(`run-unit-tests: файлов с тестами — ${files.length}`);
 
-const isWindows = process.platform === "win32";
-const tsx = path.join("node_modules", ".bin", isWindows ? "tsx.cmd" : "tsx");
-
-const child = spawn(tsx, ["--test", ...files], {
+// Avoid cmd.exe's 8191-character limit as the list of test files grows.
+const child = spawn(process.execPath, ["--import", "tsx", "--test", "--test-concurrency=2", ...files], {
   stdio: "inherit",
-  shell: isWindows,
 });
 
 child.on("error", (error) => {

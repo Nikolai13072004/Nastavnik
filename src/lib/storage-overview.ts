@@ -248,6 +248,7 @@ async function loadUsageMap() {
     quizAttempts,
     platformSettings,
     userAvatars,
+    maxDocuments,
   ] = await Promise.all([
     prisma.courseItem.findMany({
       where: {
@@ -375,7 +376,25 @@ async function loadUsageMap() {
         avatarUrl: true,
       },
     }),
+    prisma.maxCourseDocument.findMany({
+      where: { originalKey: { not: null } },
+      select: { id: true, title: true, originalKey: true, courseId: true, course: { select: { title: true } } },
+    }),
   ]);
+
+  for (const document of maxDocuments) {
+    if (!document.originalKey) continue;
+    addUsage(usageMap, storage.url("uploads", document.originalKey), {
+      kind: "course_material",
+      label: "Оригинал документа MAX",
+      detail: `${document.course.title} · ${document.title}`,
+      href: "/max",
+      courseId: document.courseId,
+      courseTitle: document.course.title,
+      itemId: document.id,
+      itemTitle: document.title,
+    });
+  }
 
   for (const item of courseItems) {
     const fileUrl = normalizeLocalUrl(item.fileUrl);

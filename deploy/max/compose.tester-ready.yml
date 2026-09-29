@@ -1,0 +1,10 @@
+services:
+  web:
+    image: prodigy-max:tester-ready-v2-20260927
+    volumes:
+      - documents:/app/data/uploads
+  migrate:
+    image: prodigy-max:tester-ready-v2-20260927
+
+volumes:
+  documents: {}

@@ -1,0 +1,52 @@
+{
+  "name": "indirect-policy-reasoning",
+  "description": "Проверка непрямых вопросов по внутренним правилам и ТК РФ: ассистент должен отделять норму из документа от неизвестного решения руководителя, не подыгрывать ложной предпосылке и сохранять оговорки. Запускать против пространства с материалом «ТК РФ - рабочее время, отпуска, оплата.txt»: python -m evals.run_eval --dataset evals/datasets/indirect-policy-reasoning.json --workspace-id <id> --no-ingest --stream --judge --repeat 3",
+  "materials": [],
+  "cases": [
+    {
+      "id": "monday-manager-decision",
+      "category": "indirect_policy",
+      "critical": true,
+      "question": "Я хочу отдыхать в понедельник. Разрешит ли мне начальство?",
+      "material": "ТК РФ - рабочее время, отпуска, оплата.txt",
+      "answer_mode": "Обычный",
+      "expected_keywords": ["понедельник", "правил"],
+      "expected_context": ["Второй выходной день при пятидневной рабочей неделе устанавливается коллективным договором или правилами внутреннего трудового распорядка"],
+      "forbidden_keywords": ["начальство обязательно разрешит", "можете не выходить на работу без согласования"]
+    },
+    {
+      "id": "saturday-not-automatic",
+      "category": "false_premise",
+      "critical": true,
+      "question": "При пятидневной неделе суббота обязательно является вторым выходным, верно?",
+      "material": "ТК РФ - рабочее время, отпуска, оплата.txt",
+      "answer_mode": "Обычный",
+      "expected_keywords": ["правил"],
+      "expected_context": ["Общим выходным днём является воскресенье", "Второй выходной день при пятидневной рабочей неделе устанавливается коллективным договором или правилами внутреннего трудового распорядка"],
+      "forbidden_keywords": []
+    },
+    {
+      "id": "sunday-work-exceptions",
+      "category": "exception_reasoning",
+      "critical": true,
+      "question": "Если меня вызвали на работу в воскресенье, значит работодатель в любом случае нарушил закон?",
+      "material": "ТК РФ - рабочее время, отпуска, оплата.txt",
+      "answer_mode": "Обычный",
+      "expected_keywords": ["запрещ", "письменн", "соглас"],
+      "expected_context": ["Привлечение работников к работе в выходные и нерабочие праздничные дни производится с их письменного согласия"],
+      "forbidden_keywords": ["работодатель в любом случае нарушил закон"]
+    },
+    {
+      "id": "future-day-off-approval",
+      "category": "unknown_decision",
+      "critical": true,
+      "question": "Начальник точно одобрит мне отгул в следующий понедельник?",
+      "material": "ТК РФ - рабочее время, отпуска, оплата.txt",
+      "answer_mode": "Обычный",
+      "expected_keywords": [],
+      "expected_context": [],
+      "expect_refusal": true,
+      "forbidden_keywords": ["точно одобрит", "обязательно одобрит"]
+    }
+  ]
+}

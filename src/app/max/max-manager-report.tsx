@@ -2,6 +2,8 @@
 
 import { type FormEvent, useEffect, useState } from "react";
 import { MaxManagerDocuments } from "./max-manager-documents";
+import { MaxLearnerHistory } from "./max-learner-history";
+import { MaxHrAnalytics } from "./max-hr-analytics";
 import styles from "./max.module.css";
 
 type Course = { id: string; title: string };
@@ -17,7 +19,8 @@ type Report = {
   assignedCount: number;
   completedCount: number;
   truncated: boolean;
-  learners: Array<{ id: string; name: string; completed: boolean; passedQuizzes: number }>;
+  learners: Array<{ id: string; name: string; completed: boolean; passedQuizzes: number;
+    dueAt: string | null; remindersEnabled: boolean; pendingDocuments: number }>;
 };
 
 export function MaxManagerReport({ token, onRenew }: { token: string; onRenew: () => void }) {
@@ -40,6 +43,35 @@ export function MaxManagerReport({ token, onRenew }: { token: string; onRenew: (
   const [refreshKey, setRefreshKey] = useState(0);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [historyLearnerId, setHistoryLearnerId] = useState("");
+  const [exporting, setExporting] = useState(false);
+
+  async function exportReport() {
+    if (!courseId || exporting) return;
+    setExporting(true);
+    setMessage("");
+    try {
+      const query = new URLSearchParams({ courseId, export: "csv" });
+      const response = await fetch(`/api/max/manager-history?${query}`, {
+        headers: { Authorization: `Bearer ${token}` }, cache: "no-store", signal: AbortSignal.timeout(15000),
+      });
+      if (response.status === 401) onRenew();
+      if (!response.ok) throw new Error("Export unavailable");
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "learning-report.csv";
+      document.body.append(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+      setMessage("CSV подготовлен. Если MAX не начал скачивание, откройте мини-приложение в веб-клиенте MAX.");
+    } catch {
+      setMessage("Не удалось выгрузить отчёт. Обновите его и повторите. Отчёты больше 200 сотрудников пока не выгружаются.");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -179,6 +211,15 @@ export function MaxManagerReport({ token, onRenew }: { token: string; onRenew: (
       {open ? "Скрыть раздел HR" : "Открыть раздел HR"}
     </button>
     {open && <>
+      {assignment?.canCreate && <details className={styles.launchHelp}>
+        <summary>Как подключить сотрудника</summary>
+        <ol>
+          <li>Добавьте сотрудника ниже. Для уже созданного профиля выберите «Новый код для существующего сотрудника».</li>
+          <li>Выберите курс и сотрудника в разделе «Назначить курс». Привязка сама по себе не назначает обучение.</li>
+          <li>Передайте личный код сотруднику. Он открывает бота в MAX, нажимает «Открыть» и вводит код в мини-приложении.</li>
+        </ol>
+        <p>Код действует 15 минут. Сотрудник не регистрируется самостоятельно и не получает права HR. Результаты появятся в отчёте после прохождения.</p>
+      </details>}
       {busy && <p role="status">Загружаем результаты…</p>}
       {message && <p role="alert">{message} <button type="button" className={styles.back} onClick={onRenew}>Проверить вход</button></p>}
       {assignment?.canCreate && <form className={styles.reportAssignment} onSubmit={(event) => void addEmployee(event)}>
@@ -241,18 +282,35 @@ export function MaxManagerReport({ token, onRenew }: { token: string; onRenew: (
         </button>
         {assignmentMessage && <p role="status">{assignmentMessage}</p>}
       </form>}
-      {courseId && assignment?.canAssign && <MaxManagerDocuments key={courseId} courseId={courseId} token={token} onRenew={onRenew} />}
+      {courseId && assignment?.canAssign && <MaxManagerDocuments key={`documents-${courseId}`} courseId={courseId} token={token} onRenew={onRenew} />}
       {report && <div className={styles.reportResults}>
         <h3>{report.title}</h3>
         <p>Завершили: {report.completedCount} из {report.assignedCount}</p>
+        <button type="button" className={styles.back} disabled={exporting || report.truncated} onClick={() => void exportReport()}>
+          {exporting ? "Готовим CSV..." : "Скачать отчёт CSV"}
+        </button>
         {report.truncated && <p>Показаны первые 200 сотрудников. Для полного отчёта откройте LMS.</p>}
         {report.learners.length === 0 ? <p>Пока нет назначенных сотрудников вашей организации.</p>
           : <ul>{report.learners.map((learner) => <li key={learner.id}>
             <strong>{learner.name}</strong>
             <span>{learner.completed ? "Курс завершён" : "Не завершён"}
               {report.quizCount > 0 ? ` · тестов сдано: ${learner.passedQuizzes} из ${report.quizCount}` : ""}</span>
+            {learner.pendingDocuments > 0 && <span>Новых документов к изучению: {learner.pendingDocuments}</span>}
+            {learner.dueAt && <span>Пройти до: {new Date(learner.dueAt).toLocaleString("ru-RU")}
+              {(!learner.completed || learner.pendingDocuments > 0) && new Date(learner.dueAt) <= new Date() ? " · просрочено" : ""}</span>}
+            <button type="button" className={styles.back} onClick={() => setHistoryLearnerId(learner.id)}>История обучения</button>
           </li>)}</ul>}
       </div>}
+      {assignment && <label className={styles.reportSelect}>Карточка сотрудника
+        <select value={historyLearnerId} onChange={(event) => setHistoryLearnerId(event.target.value)}>
+          <option value="">Выберите сотрудника</option>
+          {assignment.learners.map((learner) => <option key={learner.id} value={learner.id}>{learner.name}</option>)}
+        </select>
+      </label>}
+      {historyLearnerId && <MaxLearnerHistory key={`history-${historyLearnerId}`} learnerId={historyLearnerId} token={token}
+        canAssign={assignment?.canAssign ?? false} onRenew={onRenew} onClose={() => setHistoryLearnerId("")}
+        onSaved={() => setRefreshKey((value) => value + 1)} />}
+      {courseId && <MaxHrAnalytics key={`analytics-${courseId}`} courseId={courseId} token={token} onRenew={onRenew} />}
     </>}
   </section>;
 }

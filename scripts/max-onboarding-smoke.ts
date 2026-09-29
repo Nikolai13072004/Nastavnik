@@ -158,6 +158,32 @@ async function main() {
       1,
     );
     assert.equal((await request(detailPath, tokens[0])).course.completed, true);
+    const detail = await request(detailPath, tokens[0]);
+    const quiz = detail.course.quizzes.find((item: { id: string }) => item.id === onboardingQuizId);
+    if (quiz?.repeatable) {
+      const incorrectAnswers = Object.fromEntries(questions.map((question) => [
+        question.id, (JSON.parse(question.config).correctIndex + 1) % JSON.parse(question.config).options.length,
+      ]));
+      for (let index = 0; index < 5; index++) {
+        const repeated = await request("/api/max/quiz", tokens[0], { ...quizBody, action: "start" });
+        const retryStart = await request("/api/max/quiz", tokens[0], { ...quizBody, action: "start" });
+        assert.equal(repeated.attemptId, retryStart.attemptId);
+        const retrySubmission = { ...submission, attemptId: repeated.attemptId, answers: incorrectAnswers };
+        const result = await request("/api/max/quiz", tokens[0], retrySubmission);
+        assert.equal(result.result.outcome, "FAILED");
+        assert.deepEqual(await request("/api/max/quiz", tokens[0], retrySubmission), result);
+      }
+      const best = await db.quizUserBestResult.findUnique({
+        where: { quizId_userId: { quizId: onboardingQuizId, userId: learnerId } },
+      });
+      assert.equal(best?.attemptsUsed, 6);
+      assert.equal(best?.status, "PASSED");
+      assert.equal(best?.bestCorrectAnswers, questions.length);
+      assert.equal(await db.quizAttempt.count({ where: { userId: learnerId, quizId: onboardingQuizId } }), 6);
+      assert.equal(await db.certificate.count({ where: { userId: learnerId, courseId: onboardingCourseId } }), 1);
+      assert.equal((await request(detailPath, tokens[0])).course.completed, true);
+      console.log("HTTPS practice: six attempts, idempotent submissions, best pass and one certificate preserved");
+    }
     await request(
       `/api/max/manager-report?courseId=${onboardingCourseId}`,
       tokens[0],
@@ -181,7 +207,7 @@ async function main() {
     });
     await request(detailPath, tokens[0], undefined, 403);
     console.log(
-      "HTTPS onboarding: material gate, one passed attempt, completion, HR report and expired access verified",
+      "HTTPS onboarding: material gate, saved pass, completion, HR report and expired access verified",
     );
   } finally {
     if (created) {

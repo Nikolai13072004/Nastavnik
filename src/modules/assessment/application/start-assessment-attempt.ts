@@ -14,6 +14,7 @@ export function createStartAssessmentAttempt(repository: AssessmentRepository) {
     questions: AssessmentQuestion[];
     maxAttempts: number;
     retryDelayMinutes: number | null;
+    practice?: boolean;
     now?: Date;
   }) {
     try {
@@ -32,6 +33,7 @@ export function createStartAssessmentAttempt(repository: AssessmentRepository) {
             completedAttempts,
             maxAttempts: command.maxAttempts,
             retryDelayMinutes: command.retryDelayMinutes,
+            practice: command.practice,
             now,
           });
           const attempt = await transaction.createAttempt({

@@ -1,0 +1,7 @@
+services:
+  web:
+    image: prodigy-max:document-import-v2-20260927
+    environment:
+      MAX_VEDOMO_IMPORT_ENABLED: "true"
+  migrate:
+    image: prodigy-max:document-import-v2-20260927

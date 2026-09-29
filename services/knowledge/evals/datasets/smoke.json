@@ -1,0 +1,167 @@
+{
+  "name": "smoke",
+  "description": "Самодостаточный smoke-набор перед деплоем: три коротких материала (биология, история, информатика) ингестятся в одноразовое пространство, затем 25 вопросов проверяют выборку, факты в ответе, режимы ответа и - главное - отказ на вопросы вне корпуса (анти-галлюцинация). Запуск: python -m evals.run_eval --dataset evals/datasets/smoke.json",
+  "materials": [
+    "materials/bio-photosynthesis.txt",
+    "materials/history-russia-reforms.txt",
+    "materials/cs-data-structures.txt"
+  ],
+  "cases": [
+    {
+      "id": "bio-photosynthesis",
+      "question": "Что такое фотосинтез и какие у него конечные продукты?",
+      "expected_keywords": ["свет", "углекислый газ", "глюкоз", "кислород"],
+      "expected_context": ["фотосинтез", "хлоропласт"]
+    },
+    {
+      "id": "bio-chlorophyll",
+      "question": "Какой пигмент поглощает свет при фотосинтезе?",
+      "material": "bio-photosynthesis.txt",
+      "expected_keywords": ["хлорофилл"],
+      "expected_context": ["хлорофилл"]
+    },
+    {
+      "id": "bio-krebs-location",
+      "question": "Где в клетке протекает цикл Кребса?",
+      "expected_keywords": ["митохондри"],
+      "expected_context": ["цикл Кребса", "митохондри"]
+    },
+    {
+      "id": "bio-atp-yield",
+      "question": "Сколько молекул АТФ образуется при полном окислении одной молекулы глюкозы?",
+      "expected_keywords": ["36", "АТФ"],
+      "expected_context": ["36-38"]
+    },
+    {
+      "id": "bio-respiration-stages",
+      "question": "Из каких трёх этапов состоит аэробное клеточное дыхание?",
+      "answer_mode": "Подробно",
+      "expected_keywords": ["гликолиз", "Кребс", "фосфорилирован"],
+      "expected_context": ["гликолиз", "окислительного фосфорилирования"]
+    },
+    {
+      "id": "bio-equation-quote",
+      "question": "Приведи суммарное уравнение фотосинтеза.",
+      "material": "bio-photosynthesis.txt",
+      "answer_mode": "Только цитаты",
+      "expected_keywords": ["c6h12o6"],
+      "expected_context": ["6CO2"]
+    },
+    {
+      "id": "bio-light-phase",
+      "question": "Где протекает световая фаза фотосинтеза?",
+      "material": "bio-photosynthesis.txt",
+      "expected_keywords": ["тилакоид"],
+      "expected_context": ["тилакоид"]
+    },
+    {
+      "id": "hist-serfdom-year",
+      "question": "В каком году было отменено крепостное право в России?",
+      "expected_keywords": ["1861"],
+      "expected_context": ["1861", "крепостн"]
+    },
+    {
+      "id": "hist-serfdom-manifesto",
+      "question": "Кто и каким документом отменил крепостное право?",
+      "material": "history-russia-reforms.txt",
+      "expected_keywords": ["1861", "Александр"],
+      "expected_context": ["Манифест"]
+    },
+    {
+      "id": "hist-zemstvo",
+      "question": "Что ввела земская реформа и в каком году она была проведена?",
+      "expected_keywords": ["земств", "1864"],
+      "expected_context": ["земск"]
+    },
+    {
+      "id": "hist-judicial",
+      "question": "Какие принципы судопроизводства ввела судебная реформа?",
+      "answer_mode": "Подробно",
+      "expected_keywords": ["присяжн", "гласн"],
+      "expected_context": ["присяжн", "судебн"]
+    },
+    {
+      "id": "hist-military",
+      "question": "Что изменила военная реформа 1874 года?",
+      "expected_keywords": ["воинск", "повинност", "1874"],
+      "expected_context": ["повинност"]
+    },
+    {
+      "id": "hist-city",
+      "question": "Какие органы создала городская реформа?",
+      "answer_mode": "Кратко",
+      "expected_keywords": ["городск"],
+      "expected_context": ["городск", "дум"]
+    },
+    {
+      "id": "hist-military-author",
+      "question": "Кто провёл военную реформу при Александре II?",
+      "expected_keywords": ["Милютин"],
+      "expected_context": ["Милютин"]
+    },
+    {
+      "id": "cs-stack-lifo",
+      "question": "По какому принципу работает стек и какие у него основные операции?",
+      "expected_keywords": ["LIFO", "стек"],
+      "expected_context": ["стек", "LIFO"]
+    },
+    {
+      "id": "cs-queue-fifo",
+      "question": "По какому принципу работает очередь?",
+      "material": "cs-data-structures.txt",
+      "expected_keywords": ["FIFO", "очеред"],
+      "expected_context": ["очеред", "FIFO"]
+    },
+    {
+      "id": "cs-array-access",
+      "question": "За какое время выполняется доступ к элементу массива по индексу?",
+      "expected_keywords": ["o(1)", "индекс"],
+      "expected_context": ["массив", "индекс"]
+    },
+    {
+      "id": "cs-linked-list",
+      "question": "Из чего состоит связный список?",
+      "expected_keywords": ["связн"],
+      "expected_context": ["связн", "узл"]
+    },
+    {
+      "id": "cs-hash-table",
+      "question": "Что такое коллизия в хеш-таблице?",
+      "answer_mode": "Кратко",
+      "expected_keywords": ["хеш"],
+      "expected_context": ["хеш", "коллизи"]
+    },
+    {
+      "id": "cs-bst",
+      "question": "За какое время выполняется поиск в сбалансированном бинарном дереве поиска?",
+      "answer_mode": "Подробно",
+      "expected_keywords": ["дерев", "o(log"],
+      "expected_context": ["дерев"]
+    },
+    {
+      "id": "refusal-cooking",
+      "question": "Как приготовить классический борщ?",
+      "expect_refusal": true
+    },
+    {
+      "id": "refusal-football",
+      "question": "Кто стал чемпионом мира по футболу в 2018 году?",
+      "expect_refusal": true
+    },
+    {
+      "id": "refusal-currency",
+      "question": "Какой сейчас курс доллара к рублю?",
+      "expect_refusal": true
+    },
+    {
+      "id": "refusal-capital",
+      "question": "Какая столица Австралии?",
+      "expect_refusal": true
+    },
+    {
+      "id": "refusal-astronomy",
+      "question": "Что такое чёрная дыра и как она образуется?",
+      "expect_refusal": true
+    }
+  ]
+}

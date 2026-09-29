@@ -1,0 +1,2162 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Наставник",
+    "version": "2026-09-27",
+    "description": "Публичный API основного учебного сценария. MAX подписывает запуск, HR выдаёт личный код. Сессия действует 15 минут и не является токеном бота или входом в веб-LMS. Все данные пилота вымышленные. Дополнительные служебные маршруты webhook и настройки интеграции не входят в этот проверочный контракт."
+  },
+  "servers": [
+    {
+      "url": "https://prodigy-max.45-139-78-17.sslip.io/api/max"
+    }
+  ],
+  "security": [
+    {
+      "maxSession": []
+    }
+  ],
+  "paths": {
+    "/manager-history": {
+      "get": {
+        "operationId": "readLearningHistory",
+        "summary": "HR: карточка сотрудника, ошибки вопросов или CSV своего курса",
+        "responses": {
+          "200": {
+            "description": "Успешный результат",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/LearnerHistory"
+                    },
+                    {
+                      "$ref": "#/components/schemas/QuestionErrors"
+                    }
+                  ]
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "learnerId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "courseId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000
+            }
+          },
+          {
+            "name": "export",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "csv"
+              ]
+            }
+          }
+        ],
+        "description": "Укажите learnerId для карточки (20 попыток на страницу) или courseId для ошибок последних 2000 завершённых попыток. courseId и export=csv выгружают сводку курса. При более 200 активных сотрудниках частичная выгрузка запрещена (409)."
+      }
+    },
+    "/study-plan": {
+      "post": {
+        "operationId": "saveStudyPlan",
+        "summary": "HR: срок обучения и напоминания для назначенного сотрудника",
+        "responses": {
+          "200": {
+            "description": "Успешный результат",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "description": "dueAt - будущий срок не более года или null для снятия срока. Напоминания включаются отдельно, за 3 дня до срока и после него, не чаще раза за 24 часа. Срок не закрывает доступ и не сбрасывает результаты.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "courseId",
+                  "learnerId",
+                  "dueAt",
+                  "remindersEnabled"
+                ],
+                "properties": {
+                  "courseId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "learnerId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "dueAt": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "remindersEnabled": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai-feedback": {
+      "post": {
+        "operationId": "reportAiFeedback",
+        "summary": "Сотрудник: передать один подлинный ответ и источники HR",
+        "responses": {
+          "200": {
+            "description": "Успешный результат",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "description": "Только текущий доступ и ответ этому сотруднику не старше 7 дней. consent=true обязателен. Повтор возвращает ALREADY_REPORTED без новой записи. Остальная переписка не передаётся.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "courseId",
+                  "eventId",
+                  "question",
+                  "result",
+                  "reason",
+                  "comment",
+                  "consent"
+                ],
+                "properties": {
+                  "courseId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "eventId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "question": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "result": {
+                    "$ref": "#/components/schemas/KnowledgeAnswer"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "WRONG_ANSWER",
+                      "WRONG_SOURCE",
+                      "MISSING_ANSWER"
+                    ]
+                  },
+                  "comment": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "consent": {
+                    "type": "boolean",
+                    "enum": [
+                      true
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai-quality": {
+      "get": {
+        "operationId": "readAiQuality",
+        "summary": "HR: метаданные AI и рассмотрение жалоб своего курса",
+        "responses": {
+          "200": {
+            "description": "Успешный результат",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiQuality"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "courseId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "reviewAiFeedback",
+        "summary": "HR: зафиксировать проверку переданного ответа",
+        "responses": {
+          "200": {
+            "description": "Успешный результат",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "courseId",
+                  "eventId",
+                  "verdict",
+                  "comment"
+                ],
+                "properties": {
+                  "courseId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "eventId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "verdict": {
+                    "type": "string",
+                    "enum": [
+                      "CORRECT",
+                      "INCORRECT",
+                      "INCONCLUSIVE"
+                    ]
+                  },
+                  "comment": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/identity": {
+      "post": {
+        "operationId": "verifyIdentity",
+        "summary": "Проверить настоящий запуск из MAX, при необходимости связать профиль",
+        "responses": {
+          "200": {
+            "description": "Успешный результат",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Identity"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "description": "Лимит gateway"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "initData": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Подписанные данные MAX Bridge. Не выдумывать и не публиковать."
+                  },
+                  "inviteToken": {
+                    "type": "string",
+                    "description": "Личный одноразовый код от HR."
+                  }
+                },
+                "required": [
+                  "initData"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/courses": {
+      "get": {
+        "operationId": "listCourses",
+        "summary": "Назначенные действующие курсы",
+        "responses": {
+          "200": {
+            "description": "Успешный результат",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Courses"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "description": "Лимит gateway"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/course": {
+      "get": {
+        "operationId": "readCourse",
+        "summary": "Материалы, тесты и сохранённый прогресс курса",
+        "responses": {
+          "200": {
+            "description": "Успешный результат",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Course"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "description": "Лимит gateway. Подождать, не повторять запись автоматически."
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "courseId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "completeMaterial",
+        "summary": "Подтвердить изучение доступного материала",
+        "responses": {
+          "200": {
+            "description": "Успешный результат",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterialCompleted"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "description": "Лимит gateway"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "courseId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "materialId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "courseId",
+                  "materialId"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/quiz": {
+      "post": {
+        "operationId": "takeQuiz",
+        "summary": "Начать или сдать тест",
+        "responses": {
+          "200": {
+            "description": "Успешный результат",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/QuizStart"
+                    },
+                    {
+                      "$ref": "#/components/schemas/QuizResult"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "description": "Лимит gateway"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "description": "start возвращает существующую незавершённую попытку или создаёт новую. До начала нужен обязательный материал. submit с теми же ответами идемпотентен. answers: объект questionId: индекс ответа с нуля. Повторы без лимита доступны только демонстрационному тесту.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "start"
+                        ]
+                      },
+                      "courseId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "quizId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "courseId",
+                      "quizId"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "submit"
+                        ]
+                      },
+                      "courseId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "quizId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "attemptId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "answers": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "courseId",
+                      "quizId",
+                      "attemptId",
+                      "answers"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/knowledge": {
+      "post": {
+        "operationId": "askKnowledge",
+        "summary": "Ответ AI по разрешённым источникам курса",
+        "responses": {
+          "200": {
+            "description": "Успешный результат",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeAnswer"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "description": "Лимит AI или gateway"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "description": "refused=true с пустым sources - корректный отказ при отсутствии подтверждённого ответа. Это HTTP 200, не ошибка сервера. На пилоте подключён только один утверждённый источник.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "courseId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                  },
+                  "question": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "courseId",
+                  "question"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents": {
+      "get": {
+        "operationId": "readDocuments",
+        "summary": "Документы курса, конкретный источник или его оригинал",
+        "responses": {
+          "200": {
+            "description": "JSON-список/документ или байты оригинала. Для скачивания обязательны documentId и download=original.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Только для скачивания, attachment с UTF-8 именем."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentListOrDetail"
+                }
+              },
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "description": "Лимит gateway"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "description": "documentId выбирает один документ. download=original возвращает его байты, только если оригинал сохранён. scope=manager требует текущих прав HR/руководителя своей организации и позволяет читать черновики. Поля внутреннего хранилища не выдаются.",
+        "parameters": [
+          {
+            "name": "courseId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "documentId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "manager"
+              ]
+            }
+          },
+          {
+            "name": "download",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "original"
+              ]
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "uploadDocument",
+        "summary": "HR: загрузить TXT/MD/PDF как черновик",
+        "responses": {
+          "201": {
+            "description": "status=CREATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Ошибка разбора запроса или status=INVALID_INPUT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/Error" },
+                    { "$ref": "#/components/schemas/Status" }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "description": "status=FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Курс недоступен: error=NOT_FOUND или status=NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/Error" },
+                    { "$ref": "#/components/schemas/Status" }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "status=LIMIT_REACHED или CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "413": {
+            "$ref": "#/components/responses/Error"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "description": "Лимит gateway"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "courseId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "sourceName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "contentText": {
+                    "type": "string"
+                  },
+                  "fileBase64": {
+                    "type": "string",
+                    "format": "byte"
+                  },
+                  "supersedesId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "changeSummary": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "checkQuestion": {
+                    "type": "string",
+                    "maxLength": 240
+                  },
+                  "checkOptions": {
+                    "type": "array",
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "items": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 160
+                    }
+                  },
+                  "checkCorrectIndex": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2
+                  }
+                },
+                "required": [
+                  "courseId",
+                  "title",
+                  "sourceName"
+                ],
+                "oneOf": [
+                  {
+                    "required": [
+                      "contentText"
+                    ],
+                    "not": {
+                      "required": [
+                        "fileBase64"
+                      ]
+                    }
+                  },
+                  {
+                    "required": [
+                      "fileBase64"
+                    ],
+                    "not": {
+                      "required": [
+                        "contentText"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "description": "TXT/MD: UTF-8 до 32 КиБ, ровно одно из contentText/fileBase64. PDF: только fileBase64, до 512 КиБ и 10 страниц с текстовым слоем. Извлечённый текст до 32 КиБ. Для редакции обязательны supersedesId и все поля проверки. Для первой версии поля редакции не передавать. AI автоматически не подключается."
+      },
+      "put": {
+        "operationId": "publishDocument",
+        "summary": "HR: опубликовать или отозвать документ",
+        "responses": {
+          "200": {
+            "description": "status=UPDATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный запрос или status=INVALID_INPUT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Status"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "description": "status=FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "status=NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "status=AUDIENCE_CHANGED, AUDIENCE_TOO_LARGE или CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "413": {
+            "$ref": "#/components/responses/Error"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "description": "Лимит gateway"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "courseId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "documentId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "publish": {
+                    "type": "boolean"
+                  },
+                  "expectedRecipientIds": {
+                    "type": "array",
+                    "maxItems": 200,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    }
+                  }
+                },
+                "required": [
+                  "courseId",
+                  "documentId",
+                  "publish"
+                ]
+              }
+            }
+          }
+        },
+        "description": "Перед публикацией редакции передать список получателей из HR-просмотра. AUDIENCE_CHANGED требует обновить список, не повторять вслепую."
+      }
+    },
+    "/manager-report": {
+      "get": {
+        "operationId": "readManagerReport",
+        "summary": "HR: курсы, сотрудники и отчёт своей организации",
+        "responses": {
+          "200": {
+            "description": "Успешный результат",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagerReport"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "description": "Лимит gateway"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "courseId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "assignCourse",
+        "summary": "HR: назначить существующему сотруднику курс",
+        "responses": {
+          "200": {
+            "description": "Успешный результат",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "description": "status=FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "status=NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "413": {
+            "$ref": "#/components/responses/Error"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "description": "Лимит gateway"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "courseId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "learnerId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "courseId",
+                  "learnerId"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "maxSession": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "session.token из POST /identity после настоящего запуска MAX и личной привязки. Срок 900 секунд. Повторно открыть приложение для обновления. Не использовать токен бота или ключ внутреннего сервиса знаний."
+      }
+    },
+    "responses": {
+      "Error": {
+        "description": "Ошибка проверки запроса, доступа или сервиса",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "LearnerHistory": {
+        "type": "object",
+        "required": [
+          "learner",
+          "courses",
+          "attempts",
+          "totalAttempts",
+          "page",
+          "documents"
+        ],
+        "properties": {
+          "learner": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "status"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string",
+                "nullable": true
+              },
+              "status": {
+                "type": "string"
+              }
+            }
+          },
+          "courses": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "attempts": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "totalAttempts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "coursesTruncated": {
+            "type": "boolean"
+          },
+          "documentsTruncated": {
+            "type": "boolean"
+          }
+        }
+      },
+      "QuestionErrors": {
+        "type": "object",
+        "required": [
+          "attemptsAnalyzed",
+          "truncated",
+          "questions",
+          "questionsTruncated"
+        ],
+        "properties": {
+          "attemptsAnalyzed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "questionsTruncated": {
+            "type": "boolean"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "prompt",
+                "correct",
+                "answered",
+                "incorrect"
+              ],
+              "properties": {
+                "prompt": {
+                  "type": "string"
+                },
+                "correct": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "answered": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "incorrect": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        }
+      },
+      "AiQuality": {
+        "type": "object",
+        "required": [
+          "periodDays",
+          "total",
+          "answered",
+          "refused",
+          "errors",
+          "feedbackCount",
+          "verdicts",
+          "feedback"
+        ],
+        "description": "Метаданные за 30 дней и явно переданные жалобы. Это не измерение точности всей модели.",
+        "properties": {
+          "periodDays": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "answered": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "refused": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "errors": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "feedbackCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "timingSampleCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "averageMs": {
+            "type": "integer",
+            "nullable": true,
+            "minimum": 0
+          },
+          "p95Ms": {
+            "type": "integer",
+            "nullable": true,
+            "minimum": 0
+          },
+          "feedbackTruncated": {
+            "type": "boolean"
+          },
+          "verdicts": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "feedback": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "Status": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "CourseSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "title": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "expiresAt"
+        ]
+      },
+      "Courses": {
+        "type": "object",
+        "properties": {
+          "courses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CourseSummary"
+            }
+          }
+        },
+        "required": [
+          "courses"
+        ]
+      },
+      "Material": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string",
+            "description": "Очищенный HTML."
+          },
+          "completed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "content",
+          "completed"
+        ]
+      },
+      "QuizSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "questionCount": {
+            "type": "integer"
+          },
+          "chatSupported": {
+            "type": "boolean"
+          },
+          "maxAttempts": {
+            "type": "integer"
+          },
+          "repeatable": {
+            "type": "boolean"
+          },
+          "attemptsUsed": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "bestCorrectAnswers": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "questionCount",
+          "chatSupported",
+          "maxAttempts",
+          "repeatable",
+          "attemptsUsed",
+          "status",
+          "bestCorrectAnswers"
+        ]
+      },
+      "Course": {
+        "type": "object",
+        "properties": {
+          "course": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string",
+                "nullable": true
+              },
+              "completed": {
+                "type": "boolean"
+              },
+              "dueAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true,
+                "description": "Срок обучения, не ограничивает доступ к курсу."
+              },
+              "materials": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Material"
+                }
+              },
+              "quizzes": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/QuizSummary"
+                }
+              },
+              "hasUnsupportedItems": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "description",
+              "completed",
+              "materials",
+              "quizzes",
+              "hasUnsupportedItems"
+            ]
+          }
+        },
+        "required": [
+          "course"
+        ]
+      },
+      "MaterialCompleted": {
+        "type": "object",
+        "properties": {
+          "progress": {
+            "type": "object",
+            "required": [
+              "progressPercent"
+            ],
+            "properties": {
+              "progressPercent": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "progress"
+        ]
+      },
+      "Question": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "prompt",
+          "options"
+        ]
+      },
+      "QuizStart": {
+        "type": "object",
+        "properties": {
+          "attemptId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Question"
+            }
+          }
+        },
+        "required": [
+          "attemptId",
+          "questions"
+        ]
+      },
+      "QuizResult": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "object",
+            "properties": {
+              "outcome": {
+                "type": "string"
+              },
+              "score": {
+                "type": "number"
+              },
+              "maxScore": {
+                "type": "number"
+              },
+              "correctAnswers": {
+                "type": "integer"
+              },
+              "totalQuestions": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "outcome",
+              "score",
+              "maxScore",
+              "correctAnswers",
+              "totalQuestions"
+            ]
+          }
+        },
+        "required": [
+          "result"
+        ]
+      },
+      "KnowledgeSource": {
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "documentHash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "title": {
+            "type": "string"
+          },
+          "section": {
+            "type": "string"
+          },
+          "pageStart": {
+            "type": "integer",
+            "nullable": true
+          },
+          "pageEnd": {
+            "type": "integer",
+            "nullable": true
+          },
+          "snippet": {
+            "type": "string"
+          },
+          "courseDocumentId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "documentId",
+          "documentHash",
+          "title",
+          "section",
+          "pageStart",
+          "pageEnd",
+          "snippet"
+        ]
+      },
+      "KnowledgeAnswer": {
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "description": "Идентификатор события для явной жалобы HR. Может отсутствовать, если статистика временно недоступна."
+          },
+          "answer": {
+            "type": "string"
+          },
+          "refused": {
+            "type": "boolean"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeSource"
+            }
+          }
+        },
+        "required": [
+          "answer",
+          "refused",
+          "sources"
+        ]
+      },
+      "DocumentSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "title": {
+            "type": "string"
+          },
+          "sourceName": {
+            "type": "string"
+          },
+          "approvedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "versionNumber": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "sourceName",
+          "approvedAt",
+          "versionNumber"
+        ]
+      },
+      "Document": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "title": {
+            "type": "string"
+          },
+          "sourceName": {
+            "type": "string"
+          },
+          "contentText": {
+            "type": "string"
+          },
+          "contentHash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "hasOriginal": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "sourceName",
+          "contentText",
+          "contentHash",
+          "hasOriginal"
+        ]
+      },
+      "Documents": {
+        "type": "object",
+        "properties": {
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DocumentSummary"
+            }
+          }
+        },
+        "required": [
+          "documents"
+        ]
+      },
+      "DocumentDetail": {
+        "type": "object",
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/Document"
+          }
+        },
+        "required": [
+          "document"
+        ]
+      },
+      "DocumentListOrDetail": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/Documents"
+          },
+          {
+            "$ref": "#/components/schemas/DocumentDetail"
+          }
+        ]
+      },
+      "ManagerReport": {
+        "type": "object",
+        "properties": {
+          "courses": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "title": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "title"
+              ]
+            }
+          },
+          "report": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "courseId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "title": {
+                "type": "string"
+              },
+              "quizCount": {
+                "type": "integer"
+              },
+              "assignedCount": {
+                "type": "integer"
+              },
+              "completedCount": {
+                "type": "integer"
+              },
+              "truncated": {
+                "type": "boolean"
+              },
+              "learners": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "completed": {
+                      "type": "boolean"
+                    },
+                    "passedQuizzes": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "completed",
+                    "passedQuizzes"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "courseId",
+              "title",
+              "quizCount",
+              "assignedCount",
+              "completedCount",
+              "truncated",
+              "learners"
+            ]
+          },
+          "assignment": {
+            "type": "object",
+            "properties": {
+              "canAssign": {
+                "type": "boolean"
+              },
+              "canCreate": {
+                "type": "boolean"
+              },
+              "learners": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "canIssueCode": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "canIssueCode"
+                  ]
+                }
+              },
+              "directoryTruncated": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "canAssign",
+              "canCreate",
+              "learners",
+              "directoryTruncated"
+            ]
+          }
+        },
+        "required": [
+          "courses",
+          "report",
+          "assignment"
+        ]
+      },
+      "Identity": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "identity_verified"
+            ]
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "employeeAccess": {
+            "type": "boolean"
+          },
+          "managerAccess": {
+            "type": "boolean"
+          },
+          "employee": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": true
+          },
+          "session": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "token": {
+                "type": "string"
+              },
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "token",
+              "expiresAt"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "firstName",
+          "employeeAccess"
+        ]
+      }
+    }
+  }
+}

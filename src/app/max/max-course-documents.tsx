@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import styles from "./max.module.css";
 import { MaxDocumentText } from "./max-document-text";
+import { MaxDocumentDownload } from "./max-document-download";
 
 type DocumentRow = {
   id: string;
@@ -13,6 +14,7 @@ type DocumentRow = {
 };
 type Document = DocumentRow & {
   contentText: string;
+  hasOriginal: boolean;
   checkQuestion: string | null;
   checkOptions: string[] | null;
   training: {
@@ -295,6 +297,8 @@ export function MaxCourseDocuments({
             <p>Что изменилось: {opened.changeSummary}</p>
           )}
           <MaxDocumentText text={opened.contentText} />
+          {opened.hasOriginal && <MaxDocumentDownload key={opened.id} courseId={courseId}
+            documentId={opened.id} sourceName={opened.sourceName} token={token} onRenew={onRenew} />}
           {opened.training && opened.checkQuestion && opened.checkOptions && (
             <div className={styles.documentTraining}>
               <h5>Проверьте, что вы поняли изменение</h5>

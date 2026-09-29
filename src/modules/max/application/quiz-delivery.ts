@@ -3,6 +3,12 @@ import type { PublishedCourseSnapshotQuiz } from "@/lib/course-content";
 
 export type MaxQuizQuestion = { id: string; prompt: string; options: string[] };
 
+// Only the synthetic pilot course can opt into unlimited practice.
+export function isDemoPracticeQuiz(enabled: boolean, organizationId: string, courseId: string, quizId: string) {
+  return enabled && organizationId === "max-pilot-demo-org" &&
+    courseId === "max-pilot-onboarding-course" && quizId === "max-pilot-onboarding-quiz";
+}
+
 export function isShortChatQuiz(questions: MaxQuizQuestion[]) {
   return questions.length > 0 && questions.length <= 10 && questions.every((question) =>
     question.prompt.length + question.options.reduce((size, option) => size + option.length + 5, 0) <= 3000,

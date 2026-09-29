@@ -31,7 +31,7 @@ async function setup() {
 
   const passwordHash = await hash(randomBytes(32).toString("base64url"), 12);
   await prisma.$transaction(async (tx) => {
-    await tx.organization.create({ data: { id: organizationId, name: "Prodigy · демонстрация" } });
+    await tx.organization.create({ data: { id: organizationId, name: "Наставник · демонстрация" } });
     await tx.user.create({
       data: {
         id: userId,
@@ -63,7 +63,7 @@ async function setup() {
         title: "Как устроено обучение",
         orderIndex: 0,
         isRequired: true,
-        content: "<p>Это демонстрационный материал, а не регламент компании.</p><p>Сотрудник открывает назначенный курс в MAX, изучает материал и проходит проверку знаний. Руководитель видит результат в Prodigy.</p><p>Если информация в рабочем документе изменилась, новую версию и вопросы должен подтвердить ответственный сотрудник.</p>",
+        content: "<p>Это демонстрационный материал, а не регламент компании.</p><p>Сотрудник открывает назначенный курс в MAX, изучает материал и проходит проверку знаний. Руководитель видит результат в Наставнике.</p><p>Если информация в рабочем документе изменилась, новую версию и вопросы должен подтвердить ответственный сотрудник.</p>",
       },
     });
     const course = await tx.course.findUniqueOrThrow({

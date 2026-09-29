@@ -8,8 +8,8 @@ import { PERMISSIONS, STANDARD_ROLE_NAMES } from "@/lib/roles";
 import { resolveEnrollmentAccess } from "@/modules/enrollment/domain/enrollment-access";
 import type { MaxSessionIdentity } from "../infrastructure/learner-session";
 
-async function findManager(maxUserId: string) {
-  const link = await prisma.maxAccountLink.findUnique({
+export async function findReportManager(maxUserId: string, client: Pick<Prisma.TransactionClient, "maxAccountLink" | "roleProfile"> = prisma) {
+  const link = await client.maxAccountLink.findUnique({
     where: { maxUserId },
     select: {
       userId: true,
@@ -26,7 +26,7 @@ async function findManager(maxUserId: string) {
   if (!link || link.user.status !== "ACTIVE" || link.user.organizationId !== link.organizationId) return null;
 
   const roles = [link.user.role, ...link.user.userRoles.map(({ roleProfile }) => roleProfile.name)];
-  const permissions = await getPermissionsForRoleNames(roles);
+  const permissions = await getPermissionsForRoleNames(roles, client);
   return permissions.includes(PERMISSIONS.REPORTS_VIEW)
     ? {
         userId: link.userId,
@@ -41,11 +41,11 @@ async function findManager(maxUserId: string) {
 }
 
 export async function canViewMaxManagerReport(maxUserId: string) {
-  return Boolean(await findManager(maxUserId));
+  return Boolean(await findReportManager(maxUserId));
 }
 
 export async function getMaxManagerReport(identity: MaxSessionIdentity, courseId: string | null) {
-  const manager = await findManager(identity.maxUserId);
+  const manager = await findReportManager(identity.maxUserId);
   if (!manager || manager.userId !== identity.userId ||
       manager.organizationId !== identity.organizationId || manager.linkedAt !== identity.linkedAt) {
     return { error: "FORBIDDEN" as const };
@@ -140,6 +140,11 @@ export async function getMaxManagerReport(identity: MaxSessionIdentity, courseId
         } } },
       },
       certificates: { where: { courseId, status: "ISSUED" }, select: { id: true } },
+      maxStudyPlans: { where: { courseId }, select: { dueAt: true, remindersEnabled: true } },
+      maxDocumentTrainings: {
+        where: { courseId, passedAt: null, document: { approvedAt: { not: null }, revokedAt: null } },
+        select: { id: true },
+      },
       bestQuizResults: {
         where: { quizId: { in: quizIds } },
         select: { quizId: true, status: true },
@@ -158,6 +163,9 @@ export async function getMaxManagerReport(identity: MaxSessionIdentity, courseId
     name: learner.name,
     completed: learner.certificates.length > 0,
     passedQuizzes: learner.bestQuizResults.filter(({ status }) => status === "PASSED").length,
+    dueAt: learner.maxStudyPlans[0]?.dueAt?.toISOString() ?? null,
+    remindersEnabled: learner.maxStudyPlans[0]?.remindersEnabled ?? false,
+    pendingDocuments: learner.maxDocumentTrainings.length,
   }));
 
   return {

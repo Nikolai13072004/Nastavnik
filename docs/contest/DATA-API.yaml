@@ -1,0 +1,126 @@
+schema_version: '1.0'
+solution: Наставник
+base_url: https://prodigy-max.45-139-78-17.sslip.io/api/max
+openapi: openapi.json
+test_data: test-data.json
+description: Проверки основного сценария на вымышленных данных. Схема команды по полям ТЗ, не опубликованная схема платформы организаторов.
+authentication:
+  type: bearer
+  source: POST /identity после подписанного запуска MAX и личной привязки
+  lifetime_seconds: 900
+  roles:
+    learner: Отдельный сотрудник демонстрационной организации с назначенным курсом
+    hr: Отдельный HR той же демонстрационной организации
+  secret_delivery: Личные коды и необходимые ключи передаются проверяющим отдельно от Git
+variables:
+  COURSE_ID: max-pilot-onboarding-course
+  MATERIAL_ID: max-pilot-onboarding-material
+  QUIZ_ID: max-pilot-onboarding-quiz
+  DOCUMENT_ID: max-pilot-onboarding-document
+  LEARNER_SESSION: session.token сотрудника
+  HR_SESSION: session.token HR
+  ATTEMPT_ID: attemptId из ответа quiz-start
+  ANSWERS: Объект questionId и индекс выбранного ответа из ответа quiz-start
+checks:
+  - id: unsigned-launch-denied
+    role: anonymous
+    method: POST
+    path: /identity
+    headers: {Content-Type: application/json}
+    body: {initData: not-a-signed-max-launch}
+    expected_status_codes: [401]
+    response: {content_type: application/json, schema: '#/components/schemas/Error', required_fields: [error]}
+  - id: anonymous-courses-denied
+    role: anonymous
+    method: GET
+    path: /courses
+    expected_status_codes: [401]
+    response: {content_type: application/json, schema: '#/components/schemas/Error', required_fields: [error]}
+  - id: assigned-courses
+    role: learner
+    method: GET
+    path: /courses
+    headers: {Authorization: 'Bearer ${LEARNER_SESSION}'}
+    expected_status_codes: [200]
+    response: {content_type: application/json, schema: '#/components/schemas/Courses', required_fields: [courses]}
+  - id: course-content
+    role: learner
+    method: GET
+    path: /course
+    query: {courseId: '${COURSE_ID}'}
+    headers: {Authorization: 'Bearer ${LEARNER_SESSION}'}
+    expected_status_codes: [200]
+    response: {content_type: application/json, schema: '#/components/schemas/Course', required_fields: [course]}
+  - id: complete-material
+    role: learner
+    method: POST
+    path: /course
+    headers: {Authorization: 'Bearer ${LEARNER_SESSION}', Content-Type: application/json}
+    body: {courseId: '${COURSE_ID}', materialId: '${MATERIAL_ID}'}
+    expected_status_codes: [200]
+    response: {content_type: application/json, schema: '#/components/schemas/MaterialCompleted', required_fields: [progress]}
+  - id: quiz-start
+    role: learner
+    method: POST
+    path: /quiz
+    headers: {Authorization: 'Bearer ${LEARNER_SESSION}', Content-Type: application/json}
+    body: {action: start, courseId: '${COURSE_ID}', quizId: '${QUIZ_ID}'}
+    expected_status_codes: [200]
+    response: {content_type: application/json, schema: '#/components/schemas/QuizStart', required_fields: [attemptId, questions]}
+  - id: quiz-submit
+    role: learner
+    method: POST
+    path: /quiz
+    headers: {Authorization: 'Bearer ${LEARNER_SESSION}', Content-Type: application/json}
+    body: {action: submit, courseId: '${COURSE_ID}', quizId: '${QUIZ_ID}', attemptId: '${ATTEMPT_ID}', answers: '${ANSWERS}'}
+    bindings: {ANSWERS: json-object}
+    expected_status_codes: [200]
+    response: {content_type: application/json, schema: '#/components/schemas/QuizResult', required_fields: [result]}
+  - id: published-documents
+    role: learner
+    method: GET
+    path: /documents
+    query: {courseId: '${COURSE_ID}'}
+    headers: {Authorization: 'Bearer ${LEARNER_SESSION}'}
+    expected_status_codes: [200]
+    response: {content_type: application/json, schema: '#/components/schemas/Documents', required_fields: [documents]}
+  - id: exact-source
+    role: learner
+    method: GET
+    path: /documents
+    query: {courseId: '${COURSE_ID}', documentId: '${DOCUMENT_ID}'}
+    headers: {Authorization: 'Bearer ${LEARNER_SESSION}'}
+    expected_status_codes: [200]
+    response: {content_type: application/json, schema: '#/components/schemas/DocumentDetail', required_fields: [document]}
+  - id: verified-answer
+    role: learner
+    method: POST
+    path: /knowledge
+    headers: {Authorization: 'Bearer ${LEARNER_SESSION}', Content-Type: application/json}
+    body: {courseId: '${COURSE_ID}', question: Что делать, если код привязки потерян?}
+    expected_status_codes: [200]
+    response: {content_type: application/json, schema: '#/components/schemas/KnowledgeAnswer', required_fields: [answer, refused, sources]}
+  - id: hr-report
+    role: hr
+    method: GET
+    path: /manager-report
+    query: {courseId: '${COURSE_ID}'}
+    headers: {Authorization: 'Bearer ${HR_SESSION}'}
+    expected_status_codes: [200]
+    response: {content_type: application/json, schema: '#/components/schemas/ManagerReport', required_fields: [courses, report, assignment]}
+  - id: learner-report-denied
+    role: learner
+    method: GET
+    path: /manager-report
+    query: {courseId: '${COURSE_ID}'}
+    headers: {Authorization: 'Bearer ${LEARNER_SESSION}'}
+    expected_status_codes: [403]
+    response: {content_type: application/json, schema: '#/components/schemas/Error', required_fields: [error]}
+  - id: foreign-course-denied
+    role: learner
+    method: GET
+    path: /course
+    query: {courseId: max-contest-unassigned-course}
+    headers: {Authorization: 'Bearer ${LEARNER_SESSION}'}
+    expected_status_codes: [403]
+    response: {content_type: application/json, schema: '#/components/schemas/Error', required_fields: [error]}

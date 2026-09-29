@@ -22,6 +22,42 @@ const question: AssessmentQuestion = {
   points: 3,
 };
 
+test("practice retains all attempts and the passed best result beyond the ordinary limit", async () => {
+  const { repository, state } = createRepository();
+  const start = createStartAssessmentAttempt(repository);
+  const submit = createSubmitAssessmentAttempt(repository);
+  const command = {
+    quizId: "practice-quiz", userId: "learner", questions: [question],
+    maxAttempts: 2, retryDelayMinutes: 30, practice: true,
+  };
+  let passedAttemptId = "";
+  for (let index = 0; index < 7; index++) {
+    const attempt = await start(command);
+    assert.equal((await start(command)).attemptId, attempt.attemptId);
+    const result = await submit({
+      ...command, expectedAttemptId: attempt.attemptId,
+      answers: { q1: index === 4 ? 1 : 0 }, minCorrectAnswers: 1,
+      timeLimitMinutes: null, securityEventsJson: null,
+    });
+    if (result.outcome === "PASSED") passedAttemptId = attempt.attemptId;
+    assert.equal(state.best?.status, index >= 4 ? "PASSED" : "IN_PROGRESS");
+    await assert.rejects(
+      submit({ ...command, expectedAttemptId: attempt.attemptId, answers: { q1: 0 },
+        minCorrectAnswers: 1, timeLimitMinutes: null, securityEventsJson: null }),
+      (error: unknown) => error instanceof AssessmentApplicationError && error.code === "ATTEMPT_NOT_ACTIVE",
+    );
+  }
+  assert.equal(state.attempts.length, 7);
+  assert.deepEqual(state.attempts.map((attempt) => attempt.attemptNumber), [1, 2, 3, 4, 5, 6, 7]);
+  assert.equal(state.best?.attemptsUsed, 7);
+  assert.equal(state.best?.bestAttemptId, passedAttemptId);
+  assert.equal(state.best?.bestCorrectAnswers, 1);
+  await assert.rejects(
+    start({ ...command, practice: false }),
+    (error: unknown) => error instanceof AssessmentApplicationError && error.code === "ALREADY_PASSED",
+  );
+});
+
 function createRepository() {
   const state: { attempts: AssessmentAttempt[]; best: BestResultWrite | null } = {
     attempts: [],

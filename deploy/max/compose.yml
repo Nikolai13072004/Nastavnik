@@ -38,6 +38,7 @@ services:
       MAX_LMS_LINKS: disabled
       MAX_DISABLE_EMAIL: "true"
     networks: [backend, egress]
+    volumes: ["documents:/app/data/uploads"]
     mem_limit: 768m
     cpus: 0.7
     pids_limit: 80
@@ -119,3 +120,4 @@ networks:
 
 volumes:
   database: {}
+  documents: {}

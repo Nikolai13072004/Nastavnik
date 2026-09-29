@@ -27,9 +27,10 @@ const DESIGN_PREVIEW_STATE: LaunchState = {
   managerAccess: false,
 };
 
-export function MaxLaunch({ showLmsLinks = false, knowledgeCourseId, designPreview = false }: {
+export function MaxLaunch({ showLmsLinks = false, knowledgeCourseId, botUsername, designPreview = false }: {
   showLmsLinks?: boolean;
   knowledgeCourseId?: string;
+  botUsername?: string;
   designPreview?: boolean;
 }) {
   const [state, setState] = useState<LaunchState>(() => designPreview ? DESIGN_PREVIEW_STATE : { kind: "loading" });
@@ -102,17 +103,17 @@ export function MaxLaunch({ showLmsLinks = false, knowledgeCourseId, designPrevi
   }, [designPreview]);
 
   if (!mounted) {
-    return <main className={styles.boot} aria-label="Загрузка Prodigy"><span className={styles.brandMark}>P</span></main>;
+    return <main className={styles.boot} aria-label="Загрузка Наставника"><span className={styles.brandMark}>Н</span></main>;
   }
 
   const status = state.kind === "loading"
     ? { icon: <Spinner size={24} />, eyebrow: "Подключение", title: "Проверяем вход…", text: "Подтверждаем безопасный запуск через MAX." }
     : state.kind === "outside"
-      ? { icon: <MessageCircle size={24} aria-hidden />, eyebrow: "Нужен MAX", title: "Откройте приложение из MAX", text: "Вернитесь в чат с ботом компании и нажмите кнопку мини-приложения — так мы безопасно получим данные для входа." }
+      ? { icon: <MessageCircle size={24} aria-hidden />, eyebrow: "Нужен MAX", title: "Откройте приложение из MAX", text: "В чате с ботом нажмите «Открыть» внизу экрана. Обычная ссылка в браузере не передаёт данные для входа." }
       : state.kind === "verified"
         ? { icon: <CheckCircle2 size={24} aria-hidden />, eyebrow: "Готово", title: state.employee ? "Профиль подключён" : `${state.firstName}, подтвердите профиль`, text: state.employee
           ? `${state.employee.name} · ${state.employee.organizationName}`
-          : showLmsLinks ? "Получите одноразовый код в LMS и введите его ниже." : "Получите одноразовый код у HR или руководителя и введите его ниже." }
+          : showLmsLinks ? "Получите личный код в LMS и введите его ниже. Это нужно только при первом входе." : "Запросите личный код у HR или руководителя и введите его ниже. На демо-стенде код выдаёт администратор. Это нужно только при первом входе." }
         : { icon: <RefreshCw size={24} aria-hidden />, eyebrow: "Не удалось войти", title: "Подключение не завершено", text: state.message };
 
   return (
@@ -123,10 +124,10 @@ export function MaxLaunch({ showLmsLinks = false, knowledgeCourseId, designPrevi
         onError={() => setState({ kind: "error", message: "Не удалось подключиться к MAX. Проверьте соединение и откройте приложение повторно." })} />}
       <header className={styles.header}>
         <div className={styles.brandLockup}>
-          <span className={styles.brandMark} aria-hidden>P</span>
-          <span className={styles.brand}>Prodigy <small>Обучение в MAX</small></span>
+          <span className={styles.brandMark} aria-hidden>Н</span>
+          <span className={styles.brand}>Наставник <small>Обучение в MAX</small></span>
         </div>
-        <span className={styles.preview}>{designPreview ? "Design preview" : "MAX Mini App"}</span>
+        <span className={styles.preview}>{designPreview ? "Просмотр дизайна" : "MAX Mini App"}</span>
       </header>
       <section className={styles.content} aria-labelledby="launch-title">
         <div className={styles.hero}>
@@ -139,10 +140,16 @@ export function MaxLaunch({ showLmsLinks = false, knowledgeCourseId, designPrevi
             <span className={styles.heroBubble}><CheckCircle2 size={25} /></span>
           </div>
         </div>
-        <div className={styles.status} role="status" aria-live="polite" aria-busy={state.kind === "loading"}>
+        {designPreview ? <p className={styles.helper} role="status">
+          Просмотр дизайна с вымышленными данными. Прогресс не сохраняется. Для обучения откройте бот в MAX.
+        </p> : <div className={styles.status} role="status" aria-live="polite" aria-busy={state.kind === "loading"}>
           <span className={styles.statusIcon}>{status.icon}</span>
           <div><span className={styles.statusEyebrow}>{status.eyebrow}</span><h2>{status.title}</h2><p>{status.text}</p></div>
-        </div>
+        </div>}
+        {state.kind === "outside" && botUsername && /^[a-zA-Z0-9_]{3,64}$/.test(botUsername) &&
+          <Button asChild stretched size="medium" iconBefore={<MessageCircle size={20} />}>
+            <a href={`https://max.ru/${botUsername}`}>Открыть бот в MAX</a>
+          </Button>}
         {state.kind === "verified" && !state.employee && <LinkEmployee onLinked={() => void verify()} />}
         {state.kind === "verified" && state.employee && state.session && <MaxCourses token={state.session.token}
           managerAccess={state.managerAccess} knowledgeCourseId={knowledgeCourseId} initialCourseId={initialCourseId}
@@ -155,11 +162,21 @@ export function MaxLaunch({ showLmsLinks = false, knowledgeCourseId, designPrevi
           <Button asChild stretched size="medium" variant="secondary"><Link href="/login">Открыть веб-версию</Link></Button>
         </div> : null}
 
-        <div className={styles.features} aria-label="Возможности приложения">
-          <div><BookOpen size={20} /><span><strong>Курсы</strong><small>Учитесь в своём темпе</small></span></div>
-          <div><FileText size={20} /><span><strong>Инструкции</strong><small>Всё рабочее — под рукой</small></span></div>
-          <div><CheckCircle2 size={20} /><span><strong>Тесты</strong><small>Закрепляйте знания</small></span></div>
-        </div>
+        <details className={styles.launchHelp}>
+          <summary>Как начать обучение</summary>
+          <ol>
+            <li>HR или руководитель добавляет вас в компанию, назначает курсы и выдаёт личный код. На демо-стенде это делает администратор.</li>
+            <li>В чате с ботом MAX нажмите «Открыть» внизу экрана. Вставьте код в поле «Одноразовый код привязки» и нажмите «Связать профиль».</li>
+            <li>После привязки появятся ваши курсы. В дальнейшем достаточно открывать приложение из этого же аккаунта MAX.</li>
+          </ol>
+          <p>Код действует 15 минут. Если он истёк, запросите новый у того, кто его выдал. Не отправляйте код в чат с ботом.</p>
+          <p>Если курсов нет, попросите HR или руководителя назначить обучение. Создавать отдельный аккаунт сотруднику не нужно.</p>
+        </details>
+        <details className={styles.launchHelp}>
+          <summary>Как открыть меню в чате</summary>
+          <p>Вернитесь в чат с ботом и отправьте <strong>Меню</strong> или <code>/start</code>. Появятся кнопки выбора курса, тестов и AI. Это можно делать в любой момент.</p>
+          <p>Меню чата и мини-приложение показывают те же назначенные курсы и результаты.</p>
+        </details>
       </section>
       <footer className={styles.footer}>Вопросы о доступе к обучению можно задать HR или руководителю.</footer>
     </main>

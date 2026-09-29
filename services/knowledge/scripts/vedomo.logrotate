@@ -1,0 +1,20 @@
+# logrotate drop-in for the Vedomo cron logs, so they don't slowly fill the
+# disk (which the healthcheck would then alert on - belt and braces).
+#
+# Install on the VPS:
+#   cp /opt/vedomo/scripts/vedomo.logrotate /etc/logrotate.d/vedomo
+# Test:
+#   logrotate --debug /etc/logrotate.d/vedomo
+#
+# copytruncate: cron appends to these files, there's no daemon to signal - so we
+# truncate in place rather than rename + reopen.
+
+/var/log/vedomo-alert.log /opt/vedomo/backups/backup.log {
+    weekly
+    rotate 8
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}

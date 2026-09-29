@@ -116,12 +116,16 @@ export function createMaxBotClient(token: string, fetcher: typeof fetch = fetch)
     // Do not automatically retry: a timed-out POST may already have delivered the message.
     async sendWelcome(userId: number, botUsername: string): Promise<string> {
       return sendWithApp(userId, botUsername,
-        "Добро пожаловать в Prodigy! Откройте приложение, чтобы связать учётную запись сотрудника и увидеть назначенные курсы. Код привязки вводите только внутри приложения, не отправляйте его в чат.");
+        "Добро пожаловать в «Наставник»! Откройте приложение, чтобы связать учётную запись сотрудника и увидеть назначенные курсы. Код привязки вводите только внутри приложения, не отправляйте его в чат.");
     },
 
     async sendRevision(userId: number, botUsername: string): Promise<string> {
       return sendWithApp(userId, botUsername,
         "В назначенном курсе обновился рабочий документ. Откройте обучение, прочитайте новую редакцию и пройдите короткую проверку.");
+    },
+    async sendStudyReminder(userId: number, botUsername: string, title: string, dueAt: Date): Promise<string> {
+      return sendWithApp(userId, botUsername,
+        `Напоминание об обучении: ${title.slice(0, 180)}.\nСрок: ${dueAt.toLocaleString("ru-RU", { timeZone: "Europe/Moscow" })} (МСК).\nОткройте курс и завершите обучение. Если документ обновился, изучите новую редакцию.`);
     },
 
     async sendHelp(userId: number, botUsername: string): Promise<string> {

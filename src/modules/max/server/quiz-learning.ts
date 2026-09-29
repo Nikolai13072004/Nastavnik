@@ -7,7 +7,7 @@ import { startAssessmentAttempt } from "@/modules/assessment/server/start-assess
 import { submitAssessmentAttempt } from "@/modules/assessment/server/submit-assessment-attempt";
 import { issueCertificateIfCompleted } from "@/modules/certification/server/issue-certificate-if-completed";
 import type { MaxLearnerIdentity } from "../application/list-courses";
-import { isSupportedMaxQuiz, toMaxQuizQuestions, validateMaxQuizAnswers } from "../application/quiz-delivery";
+import { isDemoPracticeQuiz, isSupportedMaxQuiz, toMaxQuizQuestions, validateMaxQuizAnswers } from "../application/quiz-delivery";
 import { loadMaxCourseSnapshot } from "./course-learning";
 
 async function loadQuiz(identity: MaxLearnerIdentity, courseId: string, quizId: string) {
@@ -69,6 +69,8 @@ export async function startMaxQuiz(identity: MaxLearnerIdentity, courseId: strin
   const started = await startAssessmentAttempt({
     quizId, userId: identity.userId, questions: prepared,
     maxAttempts: quiz.maxAttempts, retryDelayMinutes: quiz.retryDelayMinutes,
+    practice: isDemoPracticeQuiz(process.env.MAX_DEMO_REPEAT_ENABLED === "true",
+      identity.organizationId, courseId, quizId),
   });
   const attempt = await prisma.quizAttempt.findUnique({
     where: { id: started.attemptId },
@@ -115,6 +117,8 @@ export async function submitMaxQuiz(identity: MaxLearnerIdentity, courseId: stri
     questions, answers, maxAttempts: quiz.maxAttempts,
     minCorrectAnswers: quiz.minCorrectAnswers, retryDelayMinutes: quiz.retryDelayMinutes,
     timeLimitMinutes: quiz.timeLimitMinutes, securityEventsJson: null,
+    practice: isDemoPracticeQuiz(process.env.MAX_DEMO_REPEAT_ENABLED === "true",
+      identity.organizationId, courseId, quizId),
   });
   if (result.outcome === "PASSED") {
     try {

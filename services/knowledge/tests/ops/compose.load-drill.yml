@@ -1,0 +1,75 @@
+# Isolated five-user HTTP load drill. Synthetic data and local model only.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: load
+      POSTGRES_PASSWORD: synthetic-only
+      POSTGRES_DB: load
+    volumes: ["pg:/var/lib/postgresql/data"]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U load -d load"]
+      interval: 2s
+      retries: 30
+  model-seed:
+    image: vedomo-readiness-backend:20260914
+    entrypoint: [python, /model.py]
+    environment:
+      VEDOMO_EVAL_FIXTURE: synthetic-only
+      HF_HUB_OFFLINE: '1'
+    volumes: ["models:/models", "./create_corporate_eval_model.py:/model.py:ro"]
+  backend:
+    image: vedomo-readiness-backend:20260914
+    entrypoint: [sh, -c]
+    command: ["python -m alembic upgrade head && exec uvicorn load_drill_app:app --app-dir /fixture --host 0.0.0.0 --port 8000"]
+    environment: &fixture_env
+      VEDOMO_LOAD_DRILL: synthetic-only
+      DATABASE_URL: postgresql+psycopg://load:synthetic-only@db:5432/load
+      JWT_SECRET_KEY: synthetic-load-secret-not-for-production-20260914
+      AUTH_COOKIE_SECURE: 'false'
+      EMAIL_BACKEND: memory
+      RATE_LIMIT_ENABLED: 'false'
+      QUOTAS_ENABLED: 'false'
+      EMBEDDING_MODEL: /models/corporate-bow
+      USE_RERANKER: 'false'
+      LLM_MODE: api
+      API_KEY: synthetic-not-a-provider-key
+      GIGACHAT_AUTH_KEY: ''
+      HF_HUB_OFFLINE: '1'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      ANONYMIZED_TELEMETRY: 'false'
+    volumes:
+      - docs:/app/docs
+      - data:/app/data
+      - models:/models
+      - state:/load-state
+      - results:/results
+      - "./load_drill_app.py:/fixture/load_drill_app.py:ro"
+    depends_on:
+      db: {condition: service_healthy}
+      model-seed: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD-SHELL, "python -c \"import requests; requests.get('http://127.0.0.1:8000/api/health', timeout=2).raise_for_status()\""]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  load:
+    image: vedomo-readiness-backend:20260914
+    entrypoint: [python, /fixture/http_load_drill.py]
+    environment: *fixture_env
+    volumes:
+      - state:/load-state
+      - results:/results
+      - "./http_load_drill.py:/fixture/http_load_drill.py:ro"
+    depends_on:
+      backend: {condition: service_healthy}
+networks:
+  default:
+    internal: true
+volumes:
+  pg:
+  docs:
+  data:
+  models:
+  state:
+  results:

@@ -4,6 +4,7 @@ import {
   getMaxCourseDocuments,
   getMaxManagerDocuments,
   manageMaxCourseDocuments,
+  downloadMaxDocument,
 } from "@/modules/max/server/course-documents";
 
 export const runtime = "nodejs";
@@ -54,6 +55,23 @@ export async function GET(request: Request) {
     return Response.json({ error: "INVALID_REQUEST" }, { status: 400, headers });
   }
   try {
+    if (query.get("download") === "original") {
+      if (!documentId) return Response.json({ error: "INVALID_REQUEST" }, { status: 400, headers });
+      const result = await downloadMaxDocument(identity, courseId, documentId, query.get("scope") === "manager");
+      if ("error" in result && result.error) return errorResponse(result.error);
+      if (!("bytes" in result) || !result.bytes) return errorResponse("TEMPORARILY_UNAVAILABLE");
+      const extension = /\.pdf$/i.test(result.sourceName) ? "pdf" : "txt";
+      const filename = encodeURIComponent(result.sourceName).replace(/'/g, "%27");
+      return new Response(new Uint8Array(result.bytes), {
+        headers: {
+          ...headers,
+          "Content-Type": extension === "pdf" ? "application/pdf" : "text/plain;charset=utf-8",
+          "Content-Disposition": `attachment; filename="document.${extension}"; filename*=UTF-8''${filename}`,
+          "X-Content-Type-Options": "nosniff",
+          "Content-Security-Policy": "sandbox; default-src 'none'",
+        },
+      });
+    }
     const result = query.get("scope") === "manager"
       ? await getMaxManagerDocuments(identity, courseId, documentId)
       : await getMaxCourseDocuments(identity, courseId, documentId);
@@ -93,6 +111,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "INVALID_REQUEST" }, { status: 400, headers });
     }
     let contentText: string;
+    let originalBytes: Buffer;
     if (/\.pdf$/i.test(body.sourceName)) {
       if (!("fileBase64" in body) || typeof body.fileBase64 !== "string" || "contentText" in body) {
         return Response.json({ error: "INVALID_REQUEST" }, { status: 400, headers });
@@ -106,17 +125,32 @@ export async function POST(request: Request) {
         return Response.json({ error: extracted.error }, { status, headers });
       }
       contentText = extracted.text;
+      originalBytes = Buffer.from(body.fileBase64, "base64");
     } else {
-      if (!("contentText" in body) || typeof body.contentText !== "string" || "fileBase64" in body) {
+      if ("fileBase64" in body && typeof body.fileBase64 === "string" && !("contentText" in body)) {
+        if (body.fileBase64.length > 44 * 1024 ||
+            !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(body.fileBase64)) {
+          return Response.json({ error: "INVALID_REQUEST" }, { status: 400, headers });
+        }
+        originalBytes = Buffer.from(body.fileBase64, "base64");
+        try {
+          contentText = new TextDecoder("utf-8", { fatal: true }).decode(originalBytes);
+        } catch {
+          return Response.json({ error: "INVALID_ENCODING" }, { status: 400, headers });
+        }
+      } else if ("contentText" in body && typeof body.contentText === "string" && !("fileBase64" in body)) {
+        contentText = body.contentText;
+        originalBytes = Buffer.from(contentText, "utf8");
+      } else {
         return Response.json({ error: "INVALID_REQUEST" }, { status: 400, headers });
       }
-      contentText = body.contentText;
     }
     const status = await manageMaxCourseDocuments.upload(identity, {
       courseId: body.courseId,
       title: body.title,
       sourceName: body.sourceName,
       contentText,
+      originalBytes,
       supersedesId: supersedesId as string | undefined,
       changeSummary: changeSummary as string | undefined,
       checkQuestion: checkQuestion as string | undefined,
