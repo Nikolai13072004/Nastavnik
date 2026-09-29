@@ -870,37 +870,57 @@ class KnowledgeBase:
             ranked = sorted(zip(candidates, scores), key=lambda x: x[1], reverse=True)
             reranked = [c for c, _ in ranked[:config.RERANK_TOP_K]]
             return self._preserve_retrieval_signals(query, candidates, reranked)
-        # Если реранкер не загружен - фильтруем по ключевым словам
+        # Preserve the established fallback order. Rescue only the strongest
+        # inflection-aware lexical hit if exact word matching would drop it.
         words = set(re.findall(r"[А-Яа-яёЁA-Za-z]{3,}", query.lower()))
         def kw(text):
             t = text.lower()
-            return sum(1 for w in words if w in t) / max(len(words), 1)
-        return sorted(candidates, key=lambda c: kw(c[0]), reverse=True)[:config.RERANK_TOP_K]
+            return sum(1 for word in words if word in t) / max(len(words), 1)
+        ranked = sorted(candidates, key=lambda item: kw(item[0]), reverse=True)
+        lexical = self._rank_lexical_candidates(query, candidates)
+        if lexical and lexical[0] not in ranked[:config.RERANK_TOP_K]:
+            ranked.insert(0, lexical[0])
+        return ranked[:config.RERANK_TOP_K]
 
     @staticmethod
-    def _lexical_overlap(query, text):
+    def _lexical_terms(query):
         stop = {
             "what", "which", "where", "when", "does", "from", "that", "this",
             "как", "что", "где", "когда", "какой", "какая", "какие", "это",
             "для", "или", "при", "про", "согласно", "документ", "правило",
         }
-        q = [w for w in re.findall(r"[a-zа-яё0-9-]{3,}", (query or "").casefold()) if w not in stop]
-        if not q:
-            return 0.0
-        haystack = (text or "").casefold()
-        hits = sum(1 for word in set(q) if word in haystack)
-        return hits / len(set(q))
+        words = re.findall(r"[a-zа-яё0-9-]{3,}", (query or "").casefold())
+        # Inflected words often carry the useful match in their shared prefix:
+        # "подбирает" in a question, "подбирают" in a document. Keep short
+        # words exact to avoid matching unrelated text too broadly.
+        return {word[:6] if len(word) >= 6 else word for word in words if word not in stop}
+
+    def _rank_lexical_candidates(self, query, candidates):
+        """Rank matching query terms, giving rare terms more weight."""
+        terms = self._lexical_terms(query)
+        texts = [(item[0] or "").casefold().replace("ё", "е") for item in candidates]
+        frequency = {
+            term: sum(term.replace("ё", "е") in text for text in texts)
+            for term in terms
+        }
+        # Rare query terms distinguish a precise passage from repeated document
+        # headings and generic words shared by most candidates.
+        weights = {term: 1 / (1 + count) for term, count in frequency.items()}
+        return sorted(
+            candidates,
+            key=lambda item: sum(
+                weight for term, weight in weights.items()
+                if term.replace("ё", "е") in item[0].casefold().replace("ё", "е")
+            ),
+            reverse=True,
+        )
 
     def _preserve_retrieval_signals(self, query, candidates, reranked):
         """Reserve four result slots for signals independent of cross-encoder."""
         if not candidates:
             return reranked
         dense = sorted(candidates, key=lambda item: float(item[2]), reverse=True)[:2]
-        lexical = sorted(
-            candidates,
-            key=lambda item: self._lexical_overlap(query, item[0]),
-            reverse=True,
-        )[:2]
+        lexical = self._rank_lexical_candidates(query, candidates)[:2]
         rescued = []
         seen = set()
         for candidate in dense + lexical + reranked:

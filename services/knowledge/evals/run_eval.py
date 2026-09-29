@@ -70,6 +70,10 @@ def main(argv: list[str] | None = None) -> int:
         help="measure retrieval/context only; skips answer/refusal-only cases and disables HyDE",
     )
     parser.add_argument(
+        "--all-files", action="store_true",
+        help="search across all dataset materials instead of selecting each case's file",
+    )
+    parser.add_argument(
         "--stream", action="store_true",
         help="use the production streaming service and record request-start to first token",
     )
@@ -116,6 +120,7 @@ def main(argv: list[str] | None = None) -> int:
         ingest=not args.no_ingest,
         retrieval_only=args.retrieval_only,
         stream=args.stream,
+        all_files=args.all_files,
     )
 
     markdown = report_to_markdown(report)

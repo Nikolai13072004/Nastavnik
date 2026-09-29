@@ -166,6 +166,7 @@ def run_dataset(
     ingest: bool = True,
     retrieval_only: bool = False,
     stream: bool = False,
+    all_files: bool = False,
     progress=print,
 ) -> RunReport:
     """Run every case and return a scored report.
@@ -246,7 +247,7 @@ def run_dataset(
             ttft_seconds: list[float | None] = []
             request = ChatRequest(
                 message=case.question,
-                selected_file=case.material,
+                selected_file="Все файлы" if all_files else case.material,
                 answer_mode=case.answer_mode,
             )
             # Контекст берём ИЗ ТОГО ЖЕ конвейера, что и ответ. Раньше здесь
@@ -334,7 +335,9 @@ def run_dataset(
                     pass
 
     mode = "retrieval" if retrieval_only else ("stream" if stream else "sync")
-    name = f"{dataset.name}-{mode}" if mode != "sync" else dataset.name
+    name = f"{dataset.name}-all-files" if all_files else dataset.name
+    if mode != "sync":
+        name = f"{name}-{mode}"
     return RunReport(name, ws, runs, aggregate_repeated([r.scores for r in runs]),
                      setup_seconds=setup_seconds, ingestion_seconds=ingestion_seconds, mode=mode)
 

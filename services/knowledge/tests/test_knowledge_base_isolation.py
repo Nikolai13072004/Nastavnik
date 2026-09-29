@@ -523,6 +523,36 @@ def test_reranker_cannot_drop_strong_dense_and_lexical_candidates(monkeypatch):
     assert len(ranked) == config.RERANK_TOP_K
 
 
+@pytest.mark.parametrize("has_reranker", [True, False])
+def test_inflected_russian_match_with_and_without_reranker(has_reranker):
+    from src.knowledge_base import KnowledgeBase as KB
+
+    kb = object.__new__(KB)
+    kb._reranker_loaded = True
+
+    class BadReranker:
+        def predict(self, pairs):
+            return [-100.0 if "подбирают наставников" in text else 0.0 for _, text in pairs]
+
+    kb._reranker = BadReranker() if has_reranker else None
+    relevant = (
+        "Руководители структурных подразделений подбирают наставников "
+        "для конкретных наставляемых.",
+        {},
+        0.75,
+    )
+    candidates = [
+        (f"Наставничество в крупной организации: общие положения {index}", {}, 0.99 - index / 100)
+        for index in range(20)
+    ]
+    candidates.insert(5, relevant)
+
+    query = "Кто подбирает наставника для конкретного наставляемого в крупной организации?"
+    ranked = kb._rerank_candidates(query, candidates)
+
+    assert relevant in ranked
+
+
 class _FakeCollection:
     """Минимальная заглушка Chroma: отдаёт документы, содержащие подстроку."""
 

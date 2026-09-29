@@ -75,6 +75,8 @@ next-env.d.ts
 /public/branding/*
 !/public/branding/.gitkeep
 /data/storage-tmp/
+/services/knowledge/data/
+/services/knowledge/evals/reports/
 
 # local runtime logs
 /tmp/

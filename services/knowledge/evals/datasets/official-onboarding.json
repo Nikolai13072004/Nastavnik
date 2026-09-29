@@ -1,0 +1,246 @@
+{
+  "name": "official-onboarding",
+  "description": "30 вопросов к открытым материалам Минтруда о трудовом договоре и наставничестве. Проверяется ответ по зафиксированным текстам, а не юридическая консультация или качество на документах любой компании.",
+  "materials": [
+    "materials/official-onboarding/mentoring-system.txt",
+    "materials/official-onboarding/mentoring-roles.txt",
+    "materials/official-onboarding/employment-contract.txt"
+  ],
+  "cases": [
+    {
+      "id": "mentor-written-consent",
+      "category": "mentoring_rule",
+      "critical": true,
+      "question": "Нужно ли письменное согласие работника для наставничества в сфере труда согласно рекомендациям?",
+      "material": "mentoring-system.txt",
+      "expected_keywords": ["письменн", "соглас"],
+      "expected_context": ["на основании его письменного согласия"]
+    },
+    {
+      "id": "mentor-employer-order",
+      "category": "mentoring_rule",
+      "question": "По чьему поручению выполняется работа по наставничеству?",
+      "material": "mentoring-system.txt",
+      "expected_keywords": ["работодател"],
+      "expected_context": ["по поручению работодателя"]
+    },
+    {
+      "id": "mentor-same-employer",
+      "category": "mentoring_rule",
+      "question": "Наставляемый должен работать у того же работодателя?",
+      "material": "mentoring-system.txt",
+      "expected_keywords": ["того же работодателя"],
+      "expected_context": ["другому работнику того же работодателя"]
+    },
+    {
+      "id": "mentor-manager-exception",
+      "category": "exception",
+      "critical": true,
+      "question": "Любой руководитель, который постоянно объясняет подчинённым работу, автоматически подпадает под статью 351.8 ТК РФ?",
+      "material": "mentoring-system.txt",
+      "expected_keywords": ["не распространя"],
+      "expected_context": ["на данного работника требования статьи 351.8 ТК РФ не распространяются"]
+    },
+    {
+      "id": "mentor-safety-internship",
+      "category": "exception",
+      "critical": true,
+      "question": "Стажировка по охране труда на рабочем месте считается наставничеством по статье 351.8?",
+      "material": "mentoring-system.txt",
+      "expected_keywords": ["не распространя", "стажировк"],
+      "expected_context": ["не распространяются на проведение стажировки по охране труда"]
+    },
+    {
+      "id": "mentor-system-parts",
+      "category": "mentoring_system",
+      "question": "Какие основные части системы наставничества перечислены в рекомендациях?",
+      "material": "mentoring-system.txt",
+      "expected_keywords": ["цели", "субъект", "документ"],
+      "expected_context": ["Система наставничества включает:"]
+    },
+    {
+      "id": "mentor-appointment-document",
+      "category": "mentoring_system",
+      "question": "Какой документ может закреплять наставника за наставляемым?",
+      "material": "mentoring-system.txt",
+      "expected_keywords": ["приказ"],
+      "expected_context": ["приказ (приказы) о закреплении (назначении) наставника"]
+    },
+    {
+      "id": "mentor-microbusiness-documents",
+      "category": "exception",
+      "question": "Обязательно ли микропредприятию издавать отдельное положение о наставничестве?",
+      "material": "mentoring-system.txt",
+      "expected_keywords": ["могут не издаваться", "трудовых договорах"],
+      "expected_context": ["у микропредприятий – в трудовых договорах"]
+    },
+    {
+      "id": "hr-selects-mentors",
+      "category": "role",
+      "question": "Кто в крупной организации организует отбор и подготовку наставников?",
+      "material": "mentoring-roles.txt",
+      "expected_keywords": ["служб", "персонал"],
+      "expected_context": ["организует отбор и (или) подбор и подготовку наставников"]
+    },
+    {
+      "id": "hr-monitors-results",
+      "category": "role",
+      "question": "Кто ведёт мониторинг результативности системы наставничества?",
+      "material": "mentoring-roles.txt",
+      "expected_keywords": ["служб", "персонал"],
+      "expected_context": ["мониторинг результативности и эффективности системы наставничества"]
+    },
+    {
+      "id": "head-approves-motivation",
+      "category": "role",
+      "question": "Кто утверждает систему мотивации наставников?",
+      "material": "mentoring-roles.txt",
+      "expected_keywords": ["руководител", "организац"],
+      "expected_context": ["утверждает систему мотивации наставников"]
+    },
+    {
+      "id": "line-manager-picks",
+      "category": "role",
+      "question": "Кто подбирает наставника для конкретного наставляемого в крупной организации?",
+      "material": "mentoring-roles.txt",
+      "expected_keywords": ["руководител", "подразделен"],
+      "expected_context": ["подбирают наставников для конкретных наставляемых"]
+    },
+    {
+      "id": "line-manager-followup",
+      "category": "role",
+      "question": "Кто вносит предложения о дальнейшем развитии работника после наставничества?",
+      "material": "mentoring-roles.txt",
+      "expected_keywords": ["руководител", "подразделен"],
+      "expected_context": ["предложения о дальнейшем профессиональном развитии"]
+    },
+    {
+      "id": "working-group-role",
+      "category": "role",
+      "question": "Что может делать рабочая группа по наставничеству?",
+      "material": "mentoring-roles.txt",
+      "expected_keywords": ["разрабатыва", "систем"],
+      "expected_context": ["разрабатывает (актуализирует) систему наставничества"]
+    },
+    {
+      "id": "union-role",
+      "category": "role",
+      "question": "Могут ли представители профсоюза участвовать в подготовке наставников?",
+      "material": "mentoring-roles.txt",
+      "expected_keywords": ["профсоюз", "могут"],
+      "expected_context": ["Их представители могут участвовать в отборе"]
+    },
+    {
+      "id": "small-business-initiator",
+      "category": "role",
+      "question": "Только ли руководитель может предложить ввести наставничество в малой компании?",
+      "material": "mentoring-roles.txt",
+      "expected_keywords": ["кадров", "руководител"],
+      "expected_context": ["Инициатором введения наставничества здесь может быть"]
+    },
+    {
+      "id": "contract-two-copies",
+      "category": "employment",
+      "question": "В скольких экземплярах оформляют трудовой договор согласно странице Минтруда?",
+      "material": "employment-contract.txt",
+      "expected_keywords": ["двух", "экземпляр"],
+      "expected_context": ["составляется в двух экземплярах"]
+    },
+    {
+      "id": "contract-fixed-term",
+      "category": "employment",
+      "question": "Какой предельный срок срочного трудового договора указан на странице Минтруда?",
+      "material": "employment-contract.txt",
+      "expected_keywords": ["пяти лет"],
+      "expected_context": ["не более пяти лет"]
+    },
+    {
+      "id": "contract-first-job-record",
+      "category": "exception",
+      "question": "Нужно ли предъявлять трудовую книжку, если договор заключается впервые?",
+      "material": "employment-contract.txt",
+      "expected_keywords": ["впервые", "исключен"],
+      "expected_context": ["за исключением случаев, если трудовой договор заключается впервые"]
+    },
+    {
+      "id": "contract-education-document",
+      "category": "employment",
+      "question": "Когда при приёме на работу предъявляют документ об образовании или квалификации?",
+      "material": "employment-contract.txt",
+      "expected_keywords": ["специальн", "знан"],
+      "expected_context": ["при поступлении на работу, требующую специальных знаний"]
+    },
+    {
+      "id": "contract-military-record",
+      "category": "exception",
+      "question": "Все ли поступающие на работу предъявляют документы воинского учёта?",
+      "material": "employment-contract.txt",
+      "expected_keywords": ["военнообязан", "призыв"],
+      "expected_context": ["для военнообязанных и лиц, подлежащих призыву"]
+    },
+    {
+      "id": "contract-extra-documents",
+      "category": "exception",
+      "critical": true,
+      "question": "Может ли работодатель требовать любые дополнительные документы при приёме на работу?",
+      "material": "employment-contract.txt",
+      "expected_keywords": ["запрещается", "помимо"],
+      "expected_context": ["запрещается требовать от лица, поступающего на работу, документы помимо"]
+    },
+    {
+      "id": "contract-age-14",
+      "category": "exception",
+      "question": "При каких условиях на странице Минтруда допускается трудовой договор с учащимся 14 лет?",
+      "material": "employment-contract.txt",
+      "expected_keywords": ["свободное от учебы", "согласия"],
+      "expected_context": ["работа должна выполняться в свободное от учебы время"]
+    },
+    {
+      "id": "contract-unjustified-refusal",
+      "category": "employment",
+      "question": "Что сказано на странице Минтруда о необоснованном отказе в трудовом договоре?",
+      "material": "employment-contract.txt",
+      "expected_keywords": ["запрещается", "необоснованн"],
+      "expected_context": ["Запрещается необоснованный отказ"]
+    },
+    {
+      "id": "unknown-mentor-name",
+      "category": "unknown",
+      "critical": true,
+      "question": "Кто назначен наставником сотрудника Ильи в нашей компании?",
+      "expect_refusal": true
+    },
+    {
+      "id": "unknown-mentor-payment",
+      "category": "unknown",
+      "critical": true,
+      "question": "Сколько рублей платят наставнику за каждого сотрудника в нашей компании?",
+      "expect_refusal": true
+    },
+    {
+      "id": "unknown-course-deadline",
+      "category": "unknown",
+      "question": "За сколько часов сотрудник обязан пройти курс «Первый день»?",
+      "expect_refusal": true
+    },
+    {
+      "id": "unknown-employee-test",
+      "category": "unknown",
+      "question": "Сколько баллов набрал Илья в последнем тесте?",
+      "expect_refusal": true
+    },
+    {
+      "id": "unknown-link-code",
+      "category": "unknown",
+      "critical": true,
+      "question": "Назови действующий код привязки моего профиля в MAX.",
+      "expect_refusal": true
+    },
+    {
+      "id": "unknown-company-policy",
+      "category": "unknown",
+      "question": "Как называется внутренний регламент адаптации нашей компании?",
+      "expect_refusal": true
+    }
+  ]
+}
